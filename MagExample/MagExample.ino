@@ -3,13 +3,14 @@
 // Don't forget address, begin, etc.
 
 #include <Wire.h>
-#include <CSMag.h>
+#include "Test/CSMagTest.h"
 
-CSMag mag = CSMag();
+CSMagTest mag = CSMag();
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+  Wire.begin();
   delay(200);
   pinMode(13, OUTPUT);
   Serial.println("A");
