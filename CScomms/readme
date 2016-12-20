@@ -1,0 +1,8 @@
+Comms:
+All files pertaining to communication with the ground station.
+
+Wraps XBee functions to make gathering data and transmitting
+data really simple (hopefully).
+
+Includes a test sketch for testing out the functions of Comms.
+

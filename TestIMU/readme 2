@@ -1,0 +1,8 @@
+Adafruit:
+Folder where all Adafruit-soureced files will be kept.
+Sketches will reference these files, rather than 
+anything inside the /libraries/ folder.
+
+These files have been changed such that they use ""
+instead of <> so they reference each other instead
+of their /libraries/ counterparts.

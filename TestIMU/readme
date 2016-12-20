@@ -1,0 +1,14 @@
+IMU:
+Files for all that deal with the IMU are kept
+here.
+
+Includes all .cpp and .h files which 
+conveniently wrap the Adafruit files for easy
+use in the Main sketch.
+
+Must use "" instead of <> to reference local
+copies rather than ones in /libraries/.
+
+Includes a test sketch to ensure that the IMU
+is doing the thing correctly.
+
