@@ -1,6 +1,14 @@
 // Can't be called imu.ino for reasons!
 // Also can't be named the same thing as a file in the folder, so TestIMU.ino it is!
 
+// Note: SCL is A5 and SDA is A4s
+
+// Calibration:
+// imu.temperature GOOD
+// imu.pressure() = 97724 pascals = 0.96 atm = 313m/1,140ft elev. (Tempe = 1,125ft) GOOD
+// imu.altitude() = 313m ??? 24@3st     54@6st     3@0st ITS RETURNING FEET!
+    // altitude preset starting value: 105760 (to compensate)
+
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -12,8 +20,14 @@ void setup() {
     Serial.begin(9600);
     delay(100);
 
-    imu.config();
     imu.debugMode = true;
+    imu.useGroundAltitude = true;
+    imu.setInitialAltitude(105760);
+    imu.config();
+    for (int i; i < 5; i++) {
+        Serial.print(i); Serial.print(" ");
+        delay(1000);
+    }
 }
 
 int gx, gy, gz;
@@ -26,7 +40,7 @@ void loop() {
     getData();
 
     // Choose which data to show 0, 1, 2, 3
-    int sensor = 0;
+    int sensor = 3;
     switch (sensor) {
         case 0:
             showGyroData();
@@ -44,7 +58,7 @@ void loop() {
             Serial.println("invalid sensor value");
     }
 
-    delay(1000);
+    delay(200);
 }
 
 void getData() {

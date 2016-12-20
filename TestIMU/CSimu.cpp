@@ -20,7 +20,7 @@ imu.config(); // Handles all configs
 
 bool CSimu::debugMode = false;
 bool CSimu::useGroundAltitude = false;
-float CSimu::groundAltitude = 0;
+float CSimu::groundAltitude = 0; // Centimetres?
 float CSimu::pressureVal = 0;
 
 Adafruit_BMP085_Unified CSimu::barometer;
@@ -34,7 +34,7 @@ void CSimu::debug(String s) {
 
 void CSimu::updateSensors() { // Call before accessing data
     gyro.read(); // update gyro.data variable.
-    accelMag.read(); // Does both the accelerometer and magnetometer 
+    accelMag.read(); // Does both the accelerometer and magnetometer
 }
 
 int CSimu::gyroX() { return gyro.data.x; }
@@ -71,6 +71,7 @@ float CSimu::altitude() {
 
     if (useGroundAltitude) {
         return currentAltitude - groundAltitude; // return diff
+        Serial.print("From ground");
     }
     return currentAltitude;
 }
@@ -99,4 +100,9 @@ void CSimu::config() {
     // begin, set mag gain (?)
         accelMag.begin();
         accelMag.setMagGain(LSM303_MAGGAIN_1_3); // Maybe? Find stuff on C++ enums
+}
+
+
+void CSimu::setInitialAltitude(float init) {
+    groundAltitude = init;
 }

@@ -28,7 +28,7 @@ public:
 
     void config();
     static bool debugMode; // default false
-    static bool useGroundAltitude; // if ground level is 0m altitude, default false
+    static bool useGroundAltitude; // if ground level is 0m altitude, default false // 105760 for tempe warehouses
 
     void updateSensors();
 
@@ -47,6 +47,7 @@ public:
     float temperature(); // in C
     float pressure(); // in kPa
     float altitude(); // in m (assumes sea level pressure is 1013 hPa)
+    void setInitialAltitude(float init); // preset for area or for sea level
 
 
 private:
