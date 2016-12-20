@@ -5,8 +5,14 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include "Adafruit_Sensor.h"
+#include <SPI.h>
 #include <SoftwareSerial.h> // Getting warning
+
+#include "CSimu.h"
+#include "CScomms.h"
+
+
+
 
 
 void setup() {
@@ -15,6 +21,18 @@ void setup() {
 }
 
 void loop() {
+    // 1: Retrieve data from sensors
+
+    // 2: Save data
+
+    // 3: Check command
+
+    // 4: Execute command
+
+    // 5: Transmit telemetry
+
+
+
     // Things
     delay(100);
 }
