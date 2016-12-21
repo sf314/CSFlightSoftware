@@ -8,11 +8,12 @@
 // imu.pressure() = 97724 pascals = 0.96 atm = 313m/1,140ft elev. (Tempe = 1,125ft) GOOD
 // imu.altitude() = 313m ??? 24@3st     54@6st     3@0st ITS RETURNING FEET!
     // altitude preset starting value: 105760 (to compensate)
-
+// Kalman filter no bueno for this sorta thing :(
 
 #include <Arduino.h>
 #include <Wire.h>
 #include "CSimu.h"
+#include "Kalman.h"
 
 CSimu imu = CSimu();
 
@@ -30,6 +31,7 @@ void setup() {
     }
 }
 
+
 int gx, gy, gz;
 int ax, ay, az;
 int mx, my, mz;
@@ -39,26 +41,12 @@ void loop() {
     imu.updateSensors();
     getData();
 
-    // Choose which data to show 0, 1, 2, 3
-    int sensor = 3;
-    switch (sensor) {
-        case 0:
-            showGyroData();
-            break;
-        case 1:
-            showAccelData();
-            break;
-        case 2:
-            showMagData();
-            break;
-        case 3:
-            showOther();
-            break;
-        default:
-            Serial.println("invalid sensor value");
-    }
-
-    delay(200);
+    showGyroData();
+    showAccelData();
+    showMagData();
+    showOther();
+    Serial.println();
+    delay(300);
 }
 
 void getData() {
@@ -75,7 +63,6 @@ void getData() {
     temp = imu.temperature();
     alt = imu.altitude();
 }
-
 void showGyroData() {
     Serial.println("Gyro = " + String(gx) + " | " + String(gy) + " | " + String(gz));
 }
@@ -86,5 +73,5 @@ void showMagData() {
     Serial.println("Mag = " + String(mx) + " | " + String(my) + " | " + String(mz));
 }
 void showOther() {
-    Serial.println("P = " + String(press) + "\nT = " + String(temp) + "\nA = " + String(alt));
+    Serial.println("P = " + String(press) + "\tT = " + String(temp) + "\tA = " + String(alt));
 }

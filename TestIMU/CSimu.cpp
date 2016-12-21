@@ -67,7 +67,7 @@ float CSimu::altitude() {
     // Feed pressure at sea level and current pressure (in hPa!)
     // Pressure at sea level (1 atm) = 1013 hPa
     // Can return true alt or 'radar' alt
-    float currentAltitude = barometer.pressureToAltitude(1013.0, pressureVal);
+    float currentAltitude = barometer.pressureToAltitude(1013.0, pressureVal); // Supposedly metres, but looks like feet.
 
     if (useGroundAltitude) {
         return currentAltitude - groundAltitude; // return diff

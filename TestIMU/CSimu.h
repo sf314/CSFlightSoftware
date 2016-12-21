@@ -62,3 +62,12 @@ private:
     void calibrate();
     void debug(String s);
 };
+
+
+class Vector {
+public:
+    double x;
+    double y;
+    double z;
+    Vector();
+}
