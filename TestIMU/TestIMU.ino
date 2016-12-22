@@ -10,6 +10,8 @@
     // altitude preset starting value: 105760 (to compensate)
 // Kalman filter no bueno for this sorta thing :(
 
+// 14.63 to 18.29 metres!
+
 #include <Arduino.h>
 #include <Wire.h>
 #include "CSimu.h"
@@ -19,18 +21,22 @@ CSimu imu = CSimu();
 
 void setup() {
     Serial.begin(9600);
-    delay(100);
+    delay(1000);
 
+    //imu.setInitialAltitude(105760);
     imu.debugMode = true;
     imu.useGroundAltitude = true;
-    imu.setInitialAltitude(105760);
+    imu.accelInMetersPerSecond = true;
+    imu.altInMeters = true;
+    imu.pressInHectopascals = true;
     imu.config();
-    for (int i; i < 5; i++) {
+    imu.autoSetGroundAltitude();
+    for (int i = 0; i <= 5; i++) {
         Serial.print(i); Serial.print(" ");
         delay(1000);
     }
-}
 
+}
 
 int gx, gy, gz;
 int ax, ay, az;
@@ -45,23 +51,25 @@ void loop() {
     showAccelData();
     showMagData();
     showOther();
+    Serial.print("Mag of accel is "); Serial.println(imu.gAccelMag());
     Serial.println();
     delay(300);
 }
 
 void getData() {
-    gx = imu.gyroX();
-    gy = imu.gyroY();
-    gz = imu.gyroZ();
-    ax = imu.accelX();
-    ay = imu.accelY();
-    az = imu.accelZ();
-    mx = imu.magX();
-    my = imu.magY();
-    mz = imu.magZ();
-    press = imu.pressure();
-    temp = imu.temperature();
-    alt = imu.altitude();
+    gx = imu.gyro.x;
+    gy = imu.gyro.y;
+    gz = imu.gyro.z;
+    ax = imu.accel.x;
+    ay = imu.accel.y;
+    az = imu.accel.z;
+    mx = imu.mag.x;
+    my = imu.mag.y;
+    mz = imu.mag.z;
+    press = imu.pressure;
+    temp = imu.temperature;
+    alt = imu.altitude;
+    Serial.print("imu.altitude() is returning ");Serial.println(alt);
 }
 void showGyroData() {
     Serial.println("Gyro = " + String(gx) + " | " + String(gy) + " | " + String(gz));

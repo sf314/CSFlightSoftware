@@ -23,51 +23,59 @@ altitude
 #include "Adafruit_Sensor.h"
 
 
-class CSimu {
-public:
-
-    void config();
-    static bool debugMode; // default false
-    static bool useGroundAltitude; // if ground level is 0m altitude, default false // 105760 for tempe warehouses
-
-    void updateSensors();
-
-    int accelX();
-    int accelY();
-    int accelZ();
-
-    int gyroX();
-    int gyroY();
-    int gyroZ();
-
-    int magX();
-    int magY();
-    int magZ();
-
-    float temperature(); // in C
-    float pressure(); // in kPa
-    float altitude(); // in m (assumes sea level pressure is 1013 hPa)
-    void setInitialAltitude(float init); // preset for area or for sea level
-
-
-private:
-    //sensors_event_t event; // meh
-    static Adafruit_BMP085_Unified barometer;
-    static Adafruit_L3GD20 gyro; // not the unified one
-    static Adafruit_LSM303 accelMag; // the same sensor, and not the unified class
-
-    static float groundAltitude;
-    static float pressureVal; // for pressure() and altitude()
-
-    void calibrate();
-    void debug(String s);
-};
-
-
 class Vector {
 public:
     double x;
     double y;
     double z;
     Vector();
-}
+};
+
+
+class CSimu {
+public:
+    // Initializer
+    CSimu();
+
+    void config();
+
+    // Options
+    static bool debugMode; // default false
+    static bool useGroundAltitude; // if ground level is 0m altitude, default false // 105760 for tempe warehouses
+    bool accelInMetersPerSecond; // Adjustment made in getAcceleration()
+    bool altInMeters; // Adjustment made in getAltitude();
+    bool pressInHectopascals; // Made in getPressure();
+
+
+    void updateSensors();
+
+    void setGroundAltitude(float init); // preset for area or for sea level, overrides averaging that config() does
+    void autoSetGroundAltitude();
+
+    // ****** NEW STUFF:
+    Vector accel;
+    Vector gyro;
+    Vector mag;
+
+    double pressure;
+    double temperature;
+    double altitude;
+
+    double gAccelMag(); // magnitude of acceleration vector in g's
+
+private:
+    //sensors_event_t event; // meh
+    static Adafruit_BMP085_Unified barometer;
+    static Adafruit_L3GD20 gyroscope; // not the unified one
+    static Adafruit_LSM303 accelMag; // the same sensor, and not the unified class
+
+    double getTemperature(); // in C
+    double getPressure(); // in kPa
+    double getAltitude(); // in m (assumes sea level pressure is 1013 hPa)
+
+    static double groundAltitude;
+    static double pressureVal; // for pressure() and altitude()
+
+    void calibrate(); // unimplemented and unused!
+    void debug(String s);
+};
