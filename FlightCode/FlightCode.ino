@@ -10,6 +10,7 @@
 
 #include "CSimu.h"
 #include "CScomms.h"
+#include "CSlog.h"
 
 
 
