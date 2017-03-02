@@ -48,7 +48,7 @@ void setup() {
     delay(1000);
 
     baro.init();
-    baro.setGroundHeight(baro.alt()); // set startup ground height as zero. 
+    baro.setGroundHeight(baro.alt()); // set startup ground height as zero.
 
     // Restore state and packet count if from reset (and log to local telem)
     startTime = setStartTime();
