@@ -1,1 +1,6 @@
 // Container just needs access to CSLog, CSComms, and CSAlt
+
+
+NOTE: 
+CSComms not yet implemented, thus not included in current version
+State switch logic not yet implemented, thus container will just get altitude and save to file every second regardless.
