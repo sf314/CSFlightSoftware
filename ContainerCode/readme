@@ -1,6 +1,16 @@
-// Container just needs access to CSLog, CSComms, and CSAlt
+Container Code!
 
+Tested during drone/rocket launch on 3/25.
 
 NOTE: 
-CSComms not yet implemented, thus not included in current version
-State switch logic not yet implemented, thus container will just get altitude and save to file every second regardless.
+CSComms implemented as series of functions within .ino file, rather than a separate class (though I would like it to be a class)
+
+Bootup operations not fully implemented. On bootup, container resets altitude to current alt. Not good for midair reset. Ground alt should be sampled during preflight checks, and hardcoded into the logic. Then, boot sequence must account for ground altitude when determining state. 
+
+updateTelemetry() and transmitTelemetry() functions should be added and abstracted out of loop(), so it can be called on per-state basis.
+
+Cutting is currently hardcoded with delay. This can be replaced by a for loop that waits n-seconds, and can call updateTelemetry() and transmitTelemetry() during each iteration (using functions mentioned above).
+
+It seems that due to power constraints, the payload may reboot when activating nichrome. This will result in the packet count and time resetting to zero. With SD, these can persist in memory and be loaded on bootup. This occurs if reported power value is below ~5.15V on average. 
+- To save power, do the xbee.available() check within the 1s timed loop (?).
+
