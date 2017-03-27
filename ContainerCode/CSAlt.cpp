@@ -22,3 +22,7 @@ float CSAlt::altRadar() {
     float currentAlt = alt();
     return currentAlt - groundHeight;
 }
+
+float CSAlt::getGroundHeight() {
+    return groundHeight;
+}

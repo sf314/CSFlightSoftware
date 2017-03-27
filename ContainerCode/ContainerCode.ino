@@ -21,42 +21,49 @@ Buzzer:
     Vin -> Pin 6 (needs PWM)
 */
 
+// NOTE: *** EEPROM addresses ***
+/*
+altitude @ 0 (stored as int, rounds to nearest)
+state at 1
+packet count at 2
+time at 3
+*/
+
 // NOTE:
 // Container does not need SD!
 // Need to include temp sensor on payload
 // Stop telemetry 2s after deployment
+// Currently, mission time is not persisted. Reboots reset it to zero.
 
 // TODO:
 // Stop telemetry 2 seconds after deployment
-// Put getting data and sending telemetry into discrete functions, and call them
-//  from their functions
+
 
 // ********** Required Libraries **********************************************
 #include "Wire.h"
 #include "IntersemaBaro.h"
 #include "CSAlt.h"
-#include "CSNichrome.h"
 #include "CSTemp.h"
 #include "CSBuzzer.h"
 #include "CSVolt.h"
+#include <EEPROM.h>
 #include "SoftwareSerial.h"
-//#include "CSComms.h" // pins must be edited in .h
 
 // ********** Objects *********************************************************
 CSAlt baro;
-CSNichrome nichrome;
 CSTemp temp;
 CSBuzzer buzzer;
 CSVolt volt;
 SoftwareSerial xbee(0, 1);
 
 int led = 13;
+int nichromePin = 11;
 bool on = false;
-float heightOfLaunchpad = 0;
 String dataString = "";
+float tempe = 344.0; // Custom launchpads here if desired
 
 // ********** Control variables ***********************************************
-int state             = 0;
+int state                 = 0;
     const int boot        = 0;
     const int launchpad   = 1;
     const int ascent      = 2;
@@ -86,11 +93,11 @@ int packetCount     = 1;
 // ********** State change conditions *****************************************
 #define targetAltitude          300
 #define ascentVSpeedThreshold   1
-#define ascentAltThreshold      50
+#define ascentAltThreshold      10
 #define descentVSpeedThreshold  -1
 #define forceDeployThreshold    200
 #define noVSpeedThreshold       1
-#define cutTime                 6000
+#define cutTime                 4 // seconds
 #define cutoffAlt               100
 
 // ********** Setup Function *********************************************#####
@@ -101,19 +108,20 @@ void setup() {
     pinMode(led, OUTPUT);
     delay(1000);
 
+    // Restore values from reboot
+    restore();
+
     // * Barometer
-    Serial.println(F("Initializing barometer"));
+    Serial.println("Initializing barometer");
     baro.init();
-    baro.setGroundHeight(baro.alt()); // set startup ground height as zero.
-    //baro.setGroundHeight(heightOfLaunchpad); // Set custom if known
-    currentAlt = baro.alt(); // Initialize alt stuff
+    currentAlt = baro.altRadar(); // Initialize alt stuff (GH restored)
     previousAlt = currentAlt;
 
     // * Temperature
     temp = CSTemp(22, 3300);
 
     // * Nichrome wire
-    nichrome.init(11); // Set nichrome pin (digital)
+    pinMode(nichromePin, OUTPUT);
 
     // * Buzzer
     buzzer = CSBuzzer(6);
@@ -124,49 +132,29 @@ void setup() {
 
     // * CSComms
     CSComms_begin(9600);
+    CSComms_log("Reboot");
 
     // * Time
-    Serial.println(F("Setting start time"));
-    // Restore state and packet count if from reset (and log to local telem)
+    Serial.println("Setting start time");
     startTime = setStartTime();
 }
 
 // ********** Loop Function **********************************************#####
 void loop() {
-    currentTime = millis() - startTime;
+    currentTime = restoredTime + millis() - startTime;
 
-    // *** Non-time triggered functions. Run every time. ********************
+    // *** Non-time triggered functions. Run every time. **********************
 
     // * Receive command
     if (CSComms_available()) {
         char c = CSComms_read();
         Serial.println("Received: " + String(c));
 
-        // Switch on received command char
-        switch (c) {
-            case 'x': // Auto cut command
-                //nichrome.start(currentTime, cutTime);
-                digitalWrite(11, HIGH);
-                delay(6000);
-                digitalWrite(11, LOW);
-                //ledBlinkRate = 250;
-                state = deploy;
-                break;
-            default:
-                Serial.println("Invalid command char");
-        }
+        CSComms_parse(c);
     }
 
-    // *** Time-triggered functions. Must happen on every iteration *********
+    // *** Time-triggered functions. Must happen on every iteration ***********
     if (currentTime - previousTime > refreshRate) {
-        // * Get most recent data
-        currentAlt = baro.altRadar();
-        verticalSpeed = (currentAlt - previousAlt) / ((currentTime - previousTime) / 1000); // m/s
-            // May be inf at first cuz div by zero
-        currentTemp = temp.read();
-        currentVolt = volt.read();
-
-
         // Switch on state
         switch (state) {
             case 0:
@@ -184,16 +172,6 @@ void loop() {
                 state = 0;
         }
 
-        // * Save data
-        CSComms_add("2848, CONTAINER, ");
-        CSComms_add(((float)currentTime / 1000.0));
-        CSComms_add((long)packetCount);
-        CSComms_add(currentAlt);
-        CSComms_add(currentTemp);
-        CSComms_add(currentVolt);
-        CSComms_add((long)state);
-        CSComms_transmit();
-
         // * Print data
         Serial.println("\nT: " + String(currentTime) + ",\tState: " + String(state) + ",\nAlt: " + String(currentAlt) + ",\tvSpeed: " + String(verticalSpeed) + ",\tTemp: " + String(currentTemp));
 
@@ -205,11 +183,9 @@ void loop() {
     // * Blink the led for [blink rate]
     if (currentTime - ledPrevTime > ledBlinkRate) {
         if (on) {
-            digitalWrite(led, LOW);
-            on = false;
+            digitalWrite(led, LOW); on = false;
         } else {
-            digitalWrite(led, HIGH);
-            on = true;
+            digitalWrite(led, HIGH); on = true;
         }
         ledPrevTime = currentTime;
     }
@@ -231,35 +207,16 @@ long setStartTime() {
 
 // ********** State Functions *************************************************
 void boot_f() {
-    // TODO: Recover from restart: reset to prior state.
-
-    // Check data to see what state you should be in!
-    // If ground altitude is set, then you can still use radar alt.
-    float a1 = baro.altRadar();
-    delay(1000);
-    float a2 = baro.altRadar();
-
-    if (a2 - a1 > ascentVSpeedThreshold) {  // going up
-        state = ascent;
-    } else {                                // going down
-        if (a1 > targetAltitude) {              // pre-deployment
-            state = descent;
-        } else {                                // post-deployment
-            state = deploy;
-        }
-    }
-
-    // Maybe not moving: must be on launchpad
-    if (abs(a2 - a1) < noVSpeedThreshold) {
-        state = launchpad;
-    }
+    // Restore data from EEPROM.
+    // Done in setup already?
+    //restore();
+    CSComms_log("Boot success");
+    state = launchpad;
 }
 
 void launchpad_f() {
-    // Wait for cue to  begin ascent.
-    // if (verticalSpeed > ascentVSpeedThreshold) {
-    //     state = ascent;
-    // }
+    updateTelemetry();
+    transmitTelemetry();
 
     if (currentAlt > ascentAltThreshold) {
         state = ascent;
@@ -268,47 +225,55 @@ void launchpad_f() {
 }
 
 void ascent_f() {
+    updateTelemetry();
+    transmitTelemetry();
+
     if (verticalSpeed < descentVSpeedThreshold) {
         state = descent;
     }
 }
 
 void descent_f() {
+    updateTelemetry();
+    transmitTelemetry();
+
     if (currentAlt < targetAltitude) {
         // Start cutting sequence
-        //nichrome.start(currentTime, cutTime);
-        digitalWrite(11, HIGH);
-        delay(6000);
-        digitalWrite(11, LOW);
-        ledBlinkRate = 250;
+        startCut();
+
+        // Wait n-seconds, keep transmitting telemetry
+        for (int i = 0; i < cutTime; i++) {
+            updateTelemetry();
+            transmitTelemetry();
+            delay(1000);
+        }
+        stopCut();
+
         state = deploy;
     }
 }
 
 void deploy_f() {
-    //nichrome.hold(currentTime);
+    updateTelemetry();
+    transmitTelemetry();
 
-    // Don't burn the field
+    // Final burn (but don't burn the field)
     if (currentAlt < forceDeployThreshold && currentAlt > cutoffAlt) {
-        digitalWrite(11, HIGH);
-        delay(6000);
-        digitalWrite(11, LOW);
-        nichrome.end();
-        ledBlinkRate = 1000;
+        // Start cutting sequence
+        startCut();
+
+        // Wait n-seconds, keep transmitting telemetry
+        for (int i = 0; i < (cutTime / 2); i++) {
+            updateTelemetry();
+            transmitTelemetry();
+            delay(1000);
+        }
+        stopCut();
     }
 
     // Play buzzer
     buzzer.play();
 }
-
-// Round off numbers before transmitting. Cuz data.
-float rnd(float f, int r) {
-    float roundVal = pow(10, r);
-    // Round float to 2 decimal points
-    return (float)((int)(f * roundVal)) / roundVal;
-}
-
-
 
 
 
@@ -345,4 +310,104 @@ char CSComms_read() {
 
 void CSComms_begin(int baud) {
     xbee.begin(baud);
+}
+
+void CSComms_parse(char c) {
+    switch (c) {
+        case 'x': // Auto cut command
+            //nichrome.start(currentTime, cutTime);
+            digitalWrite(11, HIGH);
+            delay(6000);
+            digitalWrite(11, LOW);
+            //ledBlinkRate = 250;
+            state = deploy;
+            break;
+        case '0': // switch to state 0 (reboot)
+            state = boot; break;
+        case '1': // switch to launchpad
+            state = launchpad; break;
+        case '2': // switch to ascent
+            state = ascent; break;
+        case '3': //  switch to descent
+            state = descent; break;
+        case '4': // switch to deploy
+            state = deploy; break;
+        case 'g': // Set ground height from current (use on launchpad) (and persist it)
+            baro.setGroundHeight(baro.alt());
+            currentAlt = baro.altRadar();
+            previousAlt = currentAlt;
+            store();
+            Serial.println("Saving altitude: " + String(currentAlt));
+            break;
+        case 'c': // Reset packet count to zero and persist it
+            packetCount = 1;
+            store();
+            break;
+        case 'p': // Print current persisted info
+            CSComms_log("St: " + String(state) + ", PC: " + String(packetCount) + ", GH: " + String(baro.getGroundHeight()));
+            break;
+        default:
+            Serial.println("Invalid command char");
+    }
+}
+
+
+
+
+// ********** Implement data update and transmit functions ********************
+void updateTelemetry() {
+    currentAlt = baro.altRadar();
+    verticalSpeed = (currentAlt - previousAlt) / ((currentTime - previousTime) / 1000); // m/s
+    currentTemp = temp.read();
+    currentVolt = volt.read();
+}
+
+void transmitTelemetry() {
+    CSComms_add("2848, CONTAINER, ");
+    CSComms_add(((float)currentTime / 1000.0));
+    CSComms_add((long)packetCount);
+    CSComms_add(currentAlt);
+    CSComms_add(currentTemp);
+    CSComms_add(currentVolt);
+    CSComms_add((long)state);
+    CSComms_transmit();
+}
+
+
+
+// ********** Cut nichrome functions ******************************************
+void startCut() {
+    digitalWrite(nichromePin, HIGH);
+}
+
+void stopCut() {
+    digitalWrite(nichromePin, LOW);
+}
+
+
+
+
+// ********** EEPROM Persistence functions ************************************
+void store() {
+    //CSComms_log("Storing to EEPROM");
+    int addr = 0;
+    EEPROM.write(addr, state);
+    addr += sizeof(int);
+    EEPROM.write(addr, packetCount);
+    addr += sizeof(int);
+    EEPROM.write(addr, (int)baro.getGroundHeight());
+    addr += sizeof(int);
+    EEPROM.write(addr, currentTime); // Type works?
+}
+
+void restore() {
+    CSComms_log("Restoring from EEPROM");
+    int addr = 0;
+    state = EEPROM.read(addr);
+    addr += sizeof(int);
+    packetCount = EEPROM.read(addr);
+    addr += sizeof(int);
+    baro.setGroundHeight((float)EEPROM.read(addr));
+    addr += sizeof(int);
+    restoredTime = EEPROM.read(addr);
 }

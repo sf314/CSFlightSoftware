@@ -14,6 +14,7 @@ public:
     float alt();
     float altRadar();
     void setGroundHeight(float gh);
+    float getGroundHeight();
 private:
     float groundHeight = 0;
 };
