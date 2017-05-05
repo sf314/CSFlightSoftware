@@ -54,7 +54,7 @@ CSAlt baro;
 CSTemp temp;
 CSBuzzer buzzer;
 CSVolt volt;
-SoftwareSerial xbee(0, 1);
+SoftwareSerial xbee(0, 1); 
 
 int led = 13;
 int nichromePin = 11;
