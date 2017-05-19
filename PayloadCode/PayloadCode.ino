@@ -37,6 +37,7 @@ CSBuzzer buzzer; bool playBuzzer = false;
 CSimu imu;
 CSPitot pitot;
 CSCoreData coreData;
+CSVolt volt;
 
 // ********** Time variables **************************************************
 int refreshRate = 1000;
@@ -80,6 +81,9 @@ void setup() {
 
     // Pitot
     pitot.setAddress(0x46);
+
+    // Voltage divider
+    volt = CSVolt(11); // What pin?
 }
 
 // ********** Loop *****************************************************#######
@@ -179,6 +183,8 @@ void landed_f() {
     // Force the buzzer
     playBuzzer = true;
 
+    // Don't transmit telemetry 
+
     // State change conditions: descending, above alt threshold
     if (currentAlt > LANDED_THRESHOLD) {
         state = descent;
@@ -247,12 +253,12 @@ void CSComms_parse(char c) {
 void updateTelemetry() {
     imu.updateSensors();
     currentAlt = imu.altitude;
-        verticalSpeed = (currentAlt - previousAlt) / (float)refreshRate;
+        verticalSpeed = (1000) * (currentAlt - previousAlt) / (float)refreshRate;
         previousAlt = currentAlt;
     pressure = imu.pressure;
     velocity = pitot.getVelocity();
     temp = imu.temperature; // or from TMP36?
-    //voltage =
+    voltage = volt.read();
 
     heading = headingFromIMU(imu.mag.x, imu.mag.y);
 
