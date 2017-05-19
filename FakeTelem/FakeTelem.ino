@@ -45,7 +45,7 @@ void loop() {
         dat += String(packetCount) + ",";
         dat += String(225 * sin(t) + 225) + ","; // alt
         dat += String(20 * sin(t) + 1000) + ","; // press
-        dat += String(4 * sin(t) + 15) + ","; // speed
+        dat += String(15 * sin(t) + 15) + ","; // speed
         dat += String(5 * sin(t) + 25) + ","; // temp
         dat += String(3.3 * sin(t) + 3.3) + ","; // volt
         dat += String(180 * sin(t) + 180) + ","; // heading

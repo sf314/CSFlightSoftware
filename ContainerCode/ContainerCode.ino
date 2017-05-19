@@ -4,6 +4,7 @@
 // Transmit telemetry at 1Hz (rq. fields in req. format)
 // Deploy payload (via payload release function) at 400m radar alt
 // Activate beacon and stop telemetry 2s after deploying payload
+// Telemetry complete!
 
 // NOTE: ***** PINOUT *****
 /*
@@ -13,12 +14,12 @@ Altimeter:
 Temp sensor:
     Data -> Pin 22 (A8)
 Nichrome:
-    Cut -> Pin 11 // Should be changed for SD card!
+    Cut -> Pin 11
 XBee:
     TX/DOUT -> Pin 0 (RX)
     RX/DIN -> Pin 1 (TX)
 Buzzer:
-    Vin -> Pin 6 (needs PWM)
+    Vin -> Pin 6 (PWM)
 */
 
 // NOTE: *** EEPROM addresses ***
@@ -54,7 +55,7 @@ CSAlt baro;
 CSTemp temp;
 CSBuzzer buzzer;
 CSVolt volt;
-SoftwareSerial xbee(0, 1); 
+SoftwareSerial xbee(0, 1);
 
 int led = 13;
 int nichromePin = 11;
@@ -339,12 +340,15 @@ void CSComms_parse(char c) {
             store();
             Serial.println("Saving altitude: " + String(currentAlt));
             break;
-        case 'c': // Reset packet count to zero and persist it
+        case 'c': // Reset packet count to 1 and persist it
             packetCount = 1;
             store();
             break;
         case 'p': // Print current persisted info
             CSComms_log("St: " + String(state) + ", PC: " + String(packetCount) + ", GH: " + String(baro.getGroundHeight()));
+            break;
+        case 'x': // Force deploy mode
+            state = deploy;
             break;
         default:
             Serial.println("Invalid command char");
@@ -389,7 +393,7 @@ void stopCut() {
 
 // ********** EEPROM Persistence functions ************************************
 void store() {
-    //CSComms_log("Storing to EEPROM");
+    CSComms_log("Storing to EEPROM");
     int addr = 0;
     EEPROM.write(addr, state);
     addr += sizeof(int);

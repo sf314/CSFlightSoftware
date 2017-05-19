@@ -13,7 +13,7 @@
 #include <SD.h>
 
 // DEFINITIONS: EDIT THESE
-#define filename "test.csv"
+#define filename "gliderSD.csv"
 #define headers "Time, altRadar"
 #define sdPin 10
 
@@ -92,7 +92,7 @@ void SD_init() {
         dataFile = SD.open(filename, FILE_WRITE);
         if (dataFile) {
             Serial.println("Writing SD headers...");
-            dataFile.println("Time, t1, t2");
+            dataFile.println(headers);
             dataFile.close();
         } else {
             Serial.println("File could not be opened. Headers not written");

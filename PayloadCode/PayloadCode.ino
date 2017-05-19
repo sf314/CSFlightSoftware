@@ -7,10 +7,14 @@
 // buzzer cannot be toggled when landed. The landed state forces the buzzer on.
 // Currently, there are only two states recognized: descent and landed. More
 // will be added.
-// Telemetry only saves accel and alt values for testing.
+// Telemetry format:
+// <TEAM ID>,GLIDER,<MISSION TIME>,<PACKET COUNT>,
+// <ALTITUDE>, <PRESSURE>,<SPEED>, <TEMP>,<VOLTAGE>,
+// <HEADING>,<SOFTWARE STATE>
 
 // ********** Inclusions ******************************************************
 #include <Wire.h>
+#include <EEPROM.h>
 #include <SPI.h>
 #include <SD.h>
 #include <math.h>
@@ -18,17 +22,27 @@
 #include "CSBuzzer.h"
 #include "CSimu.h"
 #include "CSLog.h"
+#include "CSPitot.h"
+#include "CSCoreData.h"
+#include "CSVolt.h"
 #define pi 3.14159265358
+
+// ********** Mission constants ***********************************************
+// Below 20 is considered landed
+#define LANDED_THRESHOLD 20
 
 // ********** Objects *********************************************************
 SoftwareSerial xbee(0, 1); String CSComms_dataString = "";
 CSBuzzer buzzer; bool playBuzzer = false;
 CSimu imu;
+CSPitot pitot;
+CSCoreData coreData;
 
 // ********** Time variables **************************************************
 int refreshRate = 1000;
 long currentTime = 0;
 long previousTime = 0;
+long restoredTime = 0;
 
 // ********** State information ***********************************************
 int state = 0;
@@ -37,13 +51,21 @@ int state = 0;
     int landed = 1;
 
 // ********** Telemetry structure *********************************************
+int packetCount = 0;
 float currentAlt = 0;
-float previousAlt = 0;
+float pressure = 0;
+float velocity = 0;
+float temp = 0;
+float voltage = 0;
+float heading = 0;
+
 float verticalSpeed = 0;
+float previousAlt = 0;
 
 // ********** Setup ****************************************************#######
 void setup() {
     Serial.begin(9600);
+    Wire.begin();
 
     // Communications
     CSComms_begin(9600);
@@ -55,12 +77,15 @@ void setup() {
     // IMU
     imu.config();
     imu.autoSetGroundAltitude();
+
+    // Pitot
+    pitot.setAddress(0x46);
 }
 
 // ********** Loop *****************************************************#######
 void loop() {
     // Update time
-    currentTime = millis();
+    currentTime = millis() + restoredTime;
 
     // Check for commands
     if (CSComms_available()) {
@@ -74,20 +99,35 @@ void loop() {
     if (currentTime - previousTime > refreshRate) {
 
         // *** Collect and save telemetry
-        imu.updateSensors();
-        currentAlt = imu.altitude;
-        verticalSpeed = (currentAlt - previousAlt) / (float)refreshRate;
-        previousAlt = currentAlt;
-        CSComms_add((long)state);
-        CSComms_add((float)imu.accel.x);
-        CSComms_add((float)imu.accel.y);
-        CSComms_add((float)imu.accel.z);
-        CSComms_add(currentAlt);
+        updateTelemetry();
+        float tempTime = (float)currentTime / 1000.0;
+            // 1: Comms
+            CSComms_add("2848,GLIDER,");
+            CSComms_add(tempTime);
+            CSComms_add(packetCount);
+            CSComms_add(currentAlt);
+            CSComms_add(pressure);
+            CSComms_add(velocity);
+            CSComms_add(temp);
+            CSComms_add(voltage);
+            CSComms_add(heading);
+            CSComms_add(state);
+
+            // 2: SD (add more data!)
+            SD_add("2848,GLIDER");
+            SD_add(tempTime);
+            SD_add(packetCount);
+            SD_add(currentAlt);
+            SD_add(pressure);
+            SD_add(velocity);
+            SD_add(temp);
+            SD_add(voltage);
+            SD_add(heading);
+            SD_add(state);
+
 
         // Print CSComms_dataString to serial for debugging
         Serial.println(CSComms_dataString);
-
-        // Save to SD for later!
 
         // *** Switch on state
         switch (state) {
@@ -118,7 +158,9 @@ void loop() {
 
 // ********** State funcs ******************************************************
 void boot_f() {
-    // Recover state and time from reboot!
+    // Restore time and packets if possible
+    restoredTime = coreData.restoreTime();
+    packetCount = coreData.restorePacketCount();
 }
 
 void descent_f() {
@@ -128,6 +170,9 @@ void descent_f() {
 
     // State change conditions: below alt threshold
     // Other state change would be verticalspeed, but testing would be weird
+    if (currentAlt < LANDED_THRESHOLD) {
+        state = landed;
+    }
 }
 
 void landed_f() {
@@ -135,12 +180,15 @@ void landed_f() {
     playBuzzer = true;
 
     // State change conditions: descending, above alt threshold
+    if (currentAlt > LANDED_THRESHOLD) {
+        state = descent;
+    }
 }
 
 
 
 // ********** XBee funcs ******************************************************
-void CSComms_add(long l) {
+void CSComms_add(int l) {
     CSComms_dataString += String(l) + ",";
 }
 
@@ -159,7 +207,7 @@ void CSComms_log(String s) {
 void CSComms_transmit() {
     xbee.println(CSComms_dataString);
     CSComms_dataString = "";
-    //packetCount++;
+    packetCount++;
 }
 
 bool CSComms_available() {
@@ -183,24 +231,42 @@ void CSComms_parse(char c) {
                 playBuzzer = true;
             }
             break;
-        case '0':
-            state = descent;
+        case '8':
+            state = descent; // Force state 0 or 1
             break;
-        case '1':
+        case '9':
             state = landed;
             break;
+        case 'w':       // Wipe EEPROM to all zeroes
+            coreData.wipe();
         default:
             xbee.println("Invalid command");
     }
+}
+
+void updateTelemetry() {
+    imu.updateSensors();
+    currentAlt = imu.altitude;
+        verticalSpeed = (currentAlt - previousAlt) / (float)refreshRate;
+        previousAlt = currentAlt;
+    pressure = imu.pressure;
+    velocity = pitot.getVelocity();
+    temp = imu.temperature; // or from TMP36?
+    //voltage =
+
+    heading = headingFromIMU(imu.mag.x, imu.mag.y);
+
+    // Update EEPROM
+    coreData.storeTime(currentTime);
+    coreData.storePacketCount(packetCount);
 }
 
 
 
 
 
-
-
 // ********** Calculate Heading based on Hx, Hy (adafruit) ********************
+// Ey! Do something smarter!
 // May need to change axes in order to calc it right
 // Assumes that X direction is prograde
     // If Y is prograde, then feed Y as X, and -X as Y

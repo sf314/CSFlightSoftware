@@ -1,0 +1,75 @@
+// *** Pinout:
+// With tubes pointing up, and pins facing away:
+/*
+           /\ /\
+GND     C|1----8|D
+VIN     C|2    7|D
+SDA     C|3    6|D
+SCL     C|4____5|D    INT/SS
+
+Place 100nF (#104) capacitor connecting V and Gnd.
+
+Runs in the following conditions:
+Addr: 0x28 for MS4525DO
+5V logic arduino: (OSEPP Uno)
+    5V supply and 3V supply
+
+Does not run in following:
+3.3V logic arduino: (Teensy)
+    3.3 supply
+    Will hang on Wire.endTransmission()
+    Return code 4 if it gets past that
+*/
+Is capacitor needed?
+
+Put resistor somewhere?
+Did I have to keep address as byte?
+- removed the cast to int in Wire.requestFrom()
+
+
+
+
+What is going wrong:
+The Arduino may hang during I2C communication.
+It occurs after beginTransmission(), and before
+endTransmission().
+
+
+
+
+Models:
+
+4515D 3BK (0022) (Sometimes!)
+- 0x46
+- Runs with:
+  - 3.3V supply only
+  - 3.3V logic
+  - Capacitor? Yes
+  - Resistor? No
+  - Works sometimes. 
+
+4515D 3BK (0064) (Probably busted!)
+- 0x46
+- Runs with: (const value ~6)
+  - 3.3V supply
+  - 3.3V + 5V logic
+  - Capacitor? Yes + No
+  - Resistor? No
+- Runs with: (const value ~78)
+  - 5V supply
+  - 3.3V logic
+  - Capacitor? Yes + No
+  - Resistor? No
+- Runs with: 
+  - V supply
+  - V logic
+  - Capacitor? 
+  - Resistor? 
+
+4525D 5AI (0126) (works!)
+- 0x28
+- Runs with:
+  - 3.3V + 5V supply
+  - 3.3V logic
+  - Capacitor? Yes + No
+  - Resistor? No
