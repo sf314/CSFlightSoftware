@@ -12,7 +12,12 @@
 // <ALTITUDE>, <PRESSURE>,<SPEED>, <TEMP>,<VOLTAGE>,
 // <HEADING>,<SOFTWARE STATE>
 
+// TODO:
+//ADD TEMP
+//
+
 // ********** Inclusions ******************************************************
+#include <Arduino.h>
 #include <Wire.h>
 #include <EEPROM.h>
 #include <SPI.h>
@@ -38,6 +43,7 @@ CSimu imu;
 CSPitot pitot;
 CSCoreData coreData;
 CSVolt volt;
+bool ledOn = false;
 
 // ********** Time variables **************************************************
 int refreshRate = 1000;
@@ -48,8 +54,8 @@ long restoredTime = 0;
 // ********** State information ***********************************************
 int state = 0;
     int boot = 0;
-    int descent = 0;
-    int landed = 1;
+    int descent = 1;
+    int landed = 2;
 
 // ********** Telemetry structure *********************************************
 int packetCount = 0;
@@ -65,15 +71,23 @@ float previousAlt = 0;
 
 // ********** Setup ****************************************************#######
 void setup() {
+    pinMode(13, OUTPUT);
+    digitalWrite(13, HIGH);
     Serial.begin(9600);
+    Serial.println("Entering setup");
     Wire.begin();
 
     // Communications
     CSComms_begin(9600);
 
     // Buzzer
-    buzzer = CSBuzzer(6);
+    buzzer = CSBuzzer(22);
+        // NOTE:
+        // Buzzer 1 is positive 22 // Make them different to be on (pull 22 high)
+        // Buzzer 2 is negative 21
     buzzer.setFrequency(800);
+    // Temp is 23
+    //
 
     // IMU
     imu.config();
@@ -83,7 +97,8 @@ void setup() {
     pitot.setAddress(0x46);
 
     // Voltage divider
-    volt = CSVolt(11); // What pin?
+    volt = CSVolt(14); // What pin?
+    Serial.println("Ending setup");
 }
 
 // ********** Loop *****************************************************#######
@@ -101,6 +116,7 @@ void loop() {
 
     // Run main code
     if (currentTime - previousTime > refreshRate) {
+        Serial.println("Starting man runloop");
 
         // *** Collect and save telemetry
         updateTelemetry();
@@ -135,13 +151,13 @@ void loop() {
 
         // *** Switch on state
         switch (state) {
-            case 0:
+            case boot:
                 boot_f();
                 break;
-            case 1:
+            case descent:
                 descent_f();
                 break;
-            case 2:
+            case landed:
                 landed_f();
                 break;
             default:
@@ -155,7 +171,16 @@ void loop() {
             buzzer.play();
         }
 
+        if (ledOn) {
+            digitalWrite(13, LOW);
+            ledOn = false;
+        } else {
+            digitalWrite(13, HIGH);
+            ledOn = true;
+        }
+
         previousTime = currentTime;
+        Serial.println("Ending main runloop");
     }
 }
 
@@ -183,7 +208,7 @@ void landed_f() {
     // Force the buzzer
     playBuzzer = true;
 
-    // Don't transmit telemetry 
+    // Don't transmit telemetry
 
     // State change conditions: descending, above alt threshold
     if (currentAlt > LANDED_THRESHOLD) {

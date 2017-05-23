@@ -24,6 +24,7 @@
 #define _CSCoreData_h
 
 #include "EEPROM.h"
+#include "Arduino.h"
 
 class CSCoreData {
 public:

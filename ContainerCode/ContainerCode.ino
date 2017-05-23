@@ -49,6 +49,7 @@ time at 3
 #include "CSVolt.h"
 #include <EEPROM.h>
 #include "SoftwareSerial.h"
+//#include "CSCoreData.h"
 
 // ********** Objects *********************************************************
 CSAlt baro;
@@ -91,12 +92,21 @@ float currentTemp   = 0;
 float currentVolt   = 0;
 int packetCount     = 1;
 
+// ********** Core Data structure *********************************************
+int CSCoreData_timeAddress = 0;
+int CSCoreData_altAddress = 4;
+int CSCoreData_packetAddress = 6;
+void CSCoreData_storeLong(int addr, long l); // and func prototypes
+void CSCoreData_storeInt(int addr, int i);
+long CSCoreData_restoreLong(int addr);
+int CSCoreData_restoreInt(int addr);
+
 // ********** State change conditions *****************************************
-#define targetAltitude          300
+#define targetAltitude          250
 #define ascentVSpeedThreshold   1
-#define ascentAltThreshold      10
+#define ascentAltThreshold      40
 #define descentVSpeedThreshold  -1
-#define forceDeployThreshold    200
+#define forceDeployThreshold    150
 #define noVSpeedThreshold       1
 #define cutTime                 4 // seconds
 #define cutoffAlt               100
@@ -154,19 +164,26 @@ void loop() {
         CSComms_parse(c);
     }
 
+    if (Serial.available()) {
+        char c = Serial.read();
+        Serial.println("Received: " + String(c));
+
+        CSComms_parse(c);
+    }
+
     // *** Time-triggered functions. Must happen on every iteration ***********
     if (currentTime - previousTime > refreshRate) {
         // Switch on state
         switch (state) {
-            case 0:
+            case boot:
                 boot_f(); break;
-            case 1:
+            case launchpad:
                 launchpad_f(); break;
-            case 2:
+            case ascent:
                 ascent_f(); break;
-            case 3:
+            case descent:
                 descent_f(); break;
-            case 4:
+            case deploy:
                 deploy_f(); break;
             default:
                 Serial.println(F("Error: invalid state"));
@@ -179,6 +196,7 @@ void loop() {
         // Set previous variables
         previousTime = currentTime;
         previousAlt = currentAlt;
+        store();
     }
 
     // * Blink the led for [blink rate]
@@ -201,6 +219,7 @@ void loop() {
 // ********** Miscellaneous functions *****************************************
 long setStartTime() {
     // TODO: Recover time t from file if it exists
+    // Prev time already restored during setup();
     return millis(); // do something smarter(?) eventually
 }
 
@@ -280,11 +299,11 @@ void deploy_f() {
 
 // ********** Implement CSComms functions *************************************
 void CSComms_add(long l) {
-    dataString += String(l) + ", ";
+    dataString += String(l) + ",";
 }
 
 void CSComms_add(float f) {
-    dataString += String(f) + ", ";
+    dataString += String(f) + ",";
 }
 
 void CSComms_add(String s) {
@@ -345,10 +364,15 @@ void CSComms_parse(char c) {
             store();
             break;
         case 'p': // Print current persisted info
-            CSComms_log("St: " + String(state) + ", PC: " + String(packetCount) + ", GH: " + String(baro.getGroundHeight()));
+            CSComms_log("St: " + String(currentTime) + ", PC: " + String(packetCount) + ", GH: " + String(baro.getGroundHeight()));
             break;
-        case 'x': // Force deploy mode
-            state = deploy;
+        case 'r':
+            Serial.println("Reset value");
+            restoredTime = 0;
+            packetCount = 0;
+            currentTime = 0;
+            previousTime = 0;
+            store();
             break;
         default:
             Serial.println("Invalid command char");
@@ -367,7 +391,7 @@ void updateTelemetry() {
 }
 
 void transmitTelemetry() {
-    CSComms_add("2848, CONTAINER, ");
+    CSComms_add("2848,CONTAINER,");
     CSComms_add(((float)currentTime / 1000.0));
     CSComms_add((long)packetCount);
     CSComms_add(currentAlt);
@@ -393,25 +417,86 @@ void stopCut() {
 
 // ********** EEPROM Persistence functions ************************************
 void store() {
-    CSComms_log("Storing to EEPROM");
-    int addr = 0;
-    EEPROM.write(addr, state);
-    addr += sizeof(int);
-    EEPROM.write(addr, packetCount);
-    addr += sizeof(int);
-    EEPROM.write(addr, (int)baro.getGroundHeight());
-    addr += sizeof(int);
-    EEPROM.write(addr, currentTime); // Type works?
+    // Time, alt, packet count
+    CSCoreData_storeLong(CSCoreData_timeAddress, currentTime);
+    CSCoreData_storeInt(CSCoreData_altAddress, (int)baro.getGroundHeight());
+    CSCoreData_storeInt(CSCoreData_packetAddress, packetCount);
 }
 
 void restore() {
-    CSComms_log("Restoring from EEPROM");
-    int addr = 0;
-    state = EEPROM.read(addr);
-    addr += sizeof(int);
-    packetCount = EEPROM.read(addr);
-    addr += sizeof(int);
-    baro.setGroundHeight((float)EEPROM.read(addr));
-    addr += sizeof(int);
-    restoredTime = EEPROM.read(addr);
+    //CSComms_log("Restoring from EEPROM");
+    // int addr = 0;
+    // state = EEPROM.read(addr);
+    // addr += sizeof(int);
+    // packetCount = EEPROM.read(addr);
+    // addr += sizeof(int);
+    // baro.setGroundHeight((float)EEPROM.read(addr));
+    // addr += sizeof(int);
+    // restoredTime = EEPROM.read(addr);
+
+    restoredTime = CSCoreData_restoreLong(CSCoreData_timeAddress);
+    baro.setGroundHeight((float)CSCoreData_restoreInt(CSCoreData_altAddress));
+    packetCount = CSCoreData_restoreInt(CSCoreData_packetAddress);
+}
+
+
+
+// ********** Core Data implementation ****************************************
+
+void CSCoreData_storeLong(int addr, long l) {
+    //Decomposition from a long to 4 bytes by using bitshift.
+      //One = Most significant -> Four = Least significant byte
+      char four = (l & 0xFF);
+      char three = ((l >> 8) & 0xFF);
+      char two = ((l >> 16) & 0xFF);
+      char one = ((l >> 24) & 0xFF);
+
+      //Write the 4 bytes into the eeprom memory.
+      EEPROM.write(addr, one);
+      EEPROM.write(addr + 1, two);
+      EEPROM.write(addr + 2, three);
+      EEPROM.write(addr + 3, four);
+
+    //EEPROM.write(dirtyAddress, (char)25);
+}
+
+void CSCoreData_storeInt(int addr, int i) {
+    char two = (i & 0xFF);
+    char one = ((i >> 8) & 0xFF);
+
+    //Write the 4 bytes into the eeprom memory.
+    EEPROM.write(addr, one);
+    EEPROM.write(addr + 1, two);
+
+    //EEPROM.write(dirtyAddress, (char)25);
+
+}
+
+long CSCoreData_restoreLong(int addr) {
+    long temp;
+
+    //Read the 4 bytes from the eeprom memory.
+      long one = EEPROM.read(addr);
+      long two = EEPROM.read(addr + 1);
+      long three = EEPROM.read(addr + 2);
+      long four = EEPROM.read(addr + 3);
+
+      //Return the recomposed long by using bitshift.
+      temp = ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
+
+    return temp;
+}
+
+int CSCoreData_restoreInt(int addr) {
+    int temp;
+
+    // Bit shifting to retrieve full int
+
+    int one = EEPROM.read(addr);
+    int two = EEPROM.read(addr + 1);
+
+    //Return the recomposed long by using bitshift.
+    temp = ((two << 0) & 0xFF) + ((one << 8) & 0xFFFF);
+
+    return temp;
 }

@@ -15,7 +15,7 @@
 // DEFINITIONS: EDIT THESE
 #define filename "gliderSD.csv"
 #define headers "Time, altRadar"
-#define sdPin 10
+#define sdPin 6
 
 
 // VARIABLES

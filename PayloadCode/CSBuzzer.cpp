@@ -6,6 +6,7 @@
 
 CSBuzzer::CSBuzzer() {
     // Default constructor
+    Serial.println("CSBuzzer default constructor");
     pin = 0;
     frequency = 440;
     on = false;
@@ -13,6 +14,7 @@ CSBuzzer::CSBuzzer() {
 }
 
 CSBuzzer::CSBuzzer(int p) {
+    Serial.println("CSBuzzer constructor");
     pin = p;
     frequency = 440; // A = 440
     on = false;
@@ -25,6 +27,7 @@ void CSBuzzer::setFrequency(int f) {
 
 void CSBuzzer::play() {
     // TODO: Play custom tone over time?
+    Serial.println("CSBuzzer::play()");
 
     // Assumes that play() is called every 1Hz
     if (on) {

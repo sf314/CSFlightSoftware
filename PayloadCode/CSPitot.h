@@ -34,7 +34,7 @@ float CSPitot_velocity = 0.0;
 //byte CSPitot_fetch_pressure(unsigned int *p_Pressure);
 #define TRUE 1
 #define FALSE 0
-#define CSPitot_isDebug 0
+#define CSPitot_isDebug 1
 
 // Local Vars
 byte CSPitot_status;
