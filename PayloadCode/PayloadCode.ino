@@ -53,9 +53,9 @@ long restoredTime = 0;
 
 // ********** State information ***********************************************
 int state = 0;
-    int boot = 0;
-    int descent = 1;
-    int landed = 2;
+    const int boot = 0;
+    const int descent = 1;
+    const int landed = 2;
 
 // ********** Telemetry structure *********************************************
 int packetCount = 0;
