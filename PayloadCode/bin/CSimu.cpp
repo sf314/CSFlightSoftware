@@ -25,6 +25,7 @@ double CSimu::pressureVal;
 
 
 CSimu::CSimu() {
+    Serial.println("CSimu constructor");
     // Options
     debugMode = false;
     useGroundAltitude = true;
@@ -44,11 +45,12 @@ Adafruit_LSM303 CSimu::accelMag;
 
 void CSimu::debug(String s) {
     if (debugMode) {
-        Serial.println(s);
+        Serial.println("CSimu: " + s);
     }
 }
 
 void CSimu::updateSensors() { // Call before accessing data
+    debug("updateSensors()");
     gyroscope.read(); // update gyroscope.data variable.
     accelMag.read(); // Does both the accelerometer and magnetometer
     accel.x = accelMag.accelData.x;
@@ -70,12 +72,14 @@ void CSimu::updateSensors() { // Call before accessing data
 
 
 double CSimu::getTemperature() {
+    Serial.println("getTemperature()");
     float t;
     barometer.getTemperature(&t);
     return t;
 }
 
 double CSimu::getPressure() {
+    Serial.println("getPressure");
     float p;
     barometer.getPressure(&p);
     pressureVal = p;
@@ -89,6 +93,7 @@ double CSimu::getPressure() {
 }
 
 double CSimu::getAltitude() {
+    Serial.println("getAltitude");
     // Feed pressure at sea level and current pressure (in hPa!)
     // Pressure at sea level (1 atm) = 1013 hPa
     // Can return true alt or 'radar' alt
@@ -108,7 +113,7 @@ double CSimu::getAltitude() {
         // Use press and temp to get alt in metres!
         // formula: a * (b / c)
             // Where a = ( (p0/p)^(1/5.257) ) - 1
-        Serial.println("2");
+        //Serial.println("2");
         double a;
         if (pressInHectopascals) {
             //Serial.println("2.1.1");
@@ -134,20 +139,17 @@ double CSimu::getAltitude() {
 
 
 void CSimu::config() {
-    debug("CSimu.config():");
+    debug("config()");
 
     // ***** Barometer stuff
-    debug("\nBarometer");
         barometer.begin();
 
     // ***** gyroscope stuff
     //gyroscope.begin(GYRO_RANGE_250DPS, 0x00); // Specify gyroscope's I2C address!
-    debug("\nGyro");
         gyroscope.begin();
 
     // ***** Accel and mag stuff
     // begin, set mag gain (?)
-    debug("\nAccel");
         accelMag.begin();
         accelMag.setMagGain(LSM303_MAGGAIN_1_3); // Maybe? Find stuff on C++ enums
 

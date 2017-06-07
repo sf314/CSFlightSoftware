@@ -21,10 +21,11 @@ void setup() {
     Wire.begin();
     delay(2000);
     Serial.println("Testing Pitot Tube");
+    CSPitot_setAddress(0x46);
 }
 
 void loop() {
-    Serial.println("Loop");
+    Serial.print("Loop    ");
     Serial.println(CSPitot_getVelocity());
     delay(1000);
 }

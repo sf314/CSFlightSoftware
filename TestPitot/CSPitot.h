@@ -5,12 +5,13 @@
 
 // Global variables (will be returned)
 float CSPitot_velocity = 0.0;
+byte CSPitot_addr = 0x28;
 
 // Predeclaration:
 //byte CSPitot_fetch_pressure(unsigned int *p_Pressure);
 #define TRUE 1
 #define FALSE 0
-#define isDebug 0
+#define isDebug 1
 
 // Local Vars
 byte CSPitot_status;
@@ -24,6 +25,11 @@ void debug(String s) {
     }
 }
 
+// Clearly set address
+void CSPitot_setAddress(byte b) {
+    CSPitot_addr = b;
+}
+
 
 // Example fetch_pressure
 
@@ -35,7 +41,7 @@ byte CSPitot_fetch_pressure(unsigned int *p_P_dat, unsigned int *p_T_dat) {
   unsigned int T_dat;
 
   debug("First Wire encounter");
-  address = 0x28;
+  address = CSPitot_addr;
   debug("\tBegin Transmission");
   Wire.beginTransmission(address);
   debug("\tEnd Transmission");
