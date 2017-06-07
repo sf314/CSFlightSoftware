@@ -118,7 +118,7 @@ double CSimu::getAltitude() {
         // Use press and temp to get alt in metres!
         // formula: a * (b / c)
             // Where a = ( (p0/p)^(1/5.257) ) - 1
-        Serial.println("2");
+        //Serial.println("2");
         double a;
         if (pressInHectopascals) {
             //Serial.println("2.1.1");

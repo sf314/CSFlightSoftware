@@ -29,8 +29,8 @@
 
 
 // ********** Objects *********************************************************
+SoftwareSerial xbee(0, 1); String CSComms_dataString = "";
 CSimu imu = CSimu();
-SoftwareSerial xbee(0, 1);
 
 // ********** Telemetry *******************************************************
 float missionTime = 0;
@@ -89,12 +89,14 @@ void loop() {
         imu.updateSensors();
 
         // Collect official telemetry data
-        missionTime = ()(double)currentTime / 1000.0);
-        altitude = imu.altitude;
+        missionTime = (double)currentTime / 1000.0;
+        currentAlt = imu.altitude;
         pressure = imu.pressure;
         velocity = -2; // ? Hardcoded for now? Replace with smart thing
         temperature = imu.temperature;
         voltage = 0; // Hardcoded for now. Do other stuff
+
+        Serial.println(temperature);
 
         // Run some calculations
 
@@ -116,6 +118,7 @@ void loop() {
         // Send telemetry
 
         // Set previous stuff
+        prevousAlt = currentAlt;
         previousTime = currentTime;
 
     }
@@ -152,3 +155,6 @@ void landed_f() {
 }
 
 // ********** CSComms *********************************************************
+void CSComms_add(long l) {
+
+}
