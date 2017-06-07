@@ -1,7 +1,7 @@
 // Pitot tube object for stuff
 
-#include <Wire.h>
-#include <Arduino.h>
+#include "Wire.h"
+#include "Arduino.h"
 
 // Address to use
 // 46 for 0022, 28 for 0126

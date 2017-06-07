@@ -27,20 +27,20 @@
 #include "CSBuzzer.h"
 #include "CSimu.h"
 #include "CSLog.h"
-#include "CSPitot.h"
+//#include "CSPitot.h"
 #include "CSCoreData.h"
 #include "CSVolt.h"
 #define pi 3.14159265358
 
 // ********** Mission constants ***********************************************
-// Below 20 is considered landed
-#define LANDED_THRESHOLD 20
+// Below 10 is considered landed
+#define LANDED_THRESHOLD 10
 
 // ********** Objects *********************************************************
 SoftwareSerial xbee(0, 1); String CSComms_dataString = "";
 CSBuzzer buzzer; bool playBuzzer = false;
-CSimu imu;
-CSPitot pitot;
+CSimu imu = CSimu();
+//CSPitot pitot;
 CSCoreData coreData;
 CSVolt volt;
 bool ledOn = false;
@@ -94,7 +94,7 @@ void setup() {
     imu.autoSetGroundAltitude();
 
     // Pitot
-    pitot.setAddress(0x46);
+    //pitot.setAddress(0x28);
 
     // Voltage divider
     volt = CSVolt(14); // What pin?
@@ -281,7 +281,7 @@ void updateTelemetry() {
         verticalSpeed = (1000) * (currentAlt - previousAlt) / (float)refreshRate;
         previousAlt = currentAlt;
     pressure = imu.pressure;
-    velocity = pitot.getVelocity();
+    velocity = -2; //pitot.getVelocity();
     temp = imu.temperature; // or from TMP36?
     voltage = volt.read();
 
