@@ -45,8 +45,13 @@ byte CSPitot_fetch_pressure(unsigned int *p_P_dat, unsigned int *p_T_dat) {
   debug("\tBegin Transmission");
   Wire.beginTransmission(address);
   debug("\tEnd Transmission");
-  Wire.endTransmission();
+  int error = Wire.endTransmission();
   delay(100);
+
+  if (error != 0) { // Break early if error on I2C
+      Serial.println("Breaking early");
+      return 0;
+  }
 
   debug("Second Wire encounter");
   debug("\tRequest");
