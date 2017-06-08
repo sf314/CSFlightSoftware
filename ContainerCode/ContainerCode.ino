@@ -102,7 +102,7 @@ long CSCoreData_restoreLong(int addr);
 int CSCoreData_restoreInt(int addr);
 
 // ********** State change conditions *****************************************
-#define targetAltitude          250
+#define targetAltitude          405
 #define ascentVSpeedThreshold   1
 #define ascentAltThreshold      40
 #define descentVSpeedThreshold  -1
