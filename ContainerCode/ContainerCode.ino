@@ -355,8 +355,7 @@ void CSComms_parse(char c) {
             digitalWrite(11, LOW); // Stop cut
 
             state = deploy;
-            //ledBlinkRate = 250;
-            state = deploy;
+            ledBlinkRate = 250;
             break;
         case '0': // switch to state 0 (reboot)
             state = boot; break;
