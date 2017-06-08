@@ -110,6 +110,7 @@ int CSCoreData_restoreInt(int addr);
 #define noVSpeedThreshold       1
 #define cutTime                 4
 #define cutoffAlt               100
+#define landedAltThreshold      50
 
 // ********** Setup Function *********************************************#####
 void setup() {
@@ -292,14 +293,16 @@ void deploy_f() {
     // }
 
     // Play buzzer
-    if (buzzerIsOn) {
-        digitalWrite(12, LOW);
-        buzzerIsOn = false;
-    } else {
-        if (playBuzzer) {
-            digitalWrite(12, HIGH);
+    if (currentAlt < landedAltThreshold) {
+        if (buzzerIsOn) {
+            digitalWrite(12, LOW);
+            buzzerIsOn = false;
+        } else {
+            if (playBuzzer) {
+                digitalWrite(12, HIGH);
+            }
+            buzzerIsOn = true;
         }
-        buzzerIsOn = true;
     }
 }
 

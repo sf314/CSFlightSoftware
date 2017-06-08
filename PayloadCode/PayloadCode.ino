@@ -188,6 +188,8 @@ void boot_f() {
     // Restore values from previous
     restoredTime = coreData.restoreTime();
     packetCount = coreData.restorePacketCount();
+    Serial.print("Restored time: "); Serial.println(restoredTime);
+    Serial.print("Restored count: "); Serial.println(packetCount);
     state = descent;
 }
 
