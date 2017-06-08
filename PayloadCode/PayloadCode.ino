@@ -305,7 +305,7 @@ double readTemp(int tempPin) {
 double readVolt(int pin) {
     double pinMillivolts = analogRead(pin) * (3300.0 / 1024.0);
     double volts = pinMillivolts / 1000.0;
-    //return volts * 2;
+    return volts * 2;
     // Or do some rubbish
-    return 6.0;
+    //return 6.0;
 }
