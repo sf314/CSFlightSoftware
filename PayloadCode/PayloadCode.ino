@@ -39,6 +39,7 @@ CSCoreData coreData;
 
 int buzzerPin = 12;
 bool playBuzzer = true; bool buzzerIsOn = false;
+bool ledOn = false;
 
 // ********** Telemetry *******************************************************
 double missionTime = 0;
@@ -85,6 +86,8 @@ void setup() {
     // Temp sensor
     pinMode(23, INPUT);
 
+    // LED
+    pinMode(13, OUTPUT);
 }
 
 void loop() {
@@ -164,6 +167,11 @@ void loop() {
         // Set previous stuff
         previousAlt = currentAlt;
         previousTime = currentTime;
+
+        // Blink
+        if (ledOn) {digitalWrite(13, LOW);}
+        else {digitalWrite(13, HIGH);}
+        ledOn = !ledOn;
 
     }
 
