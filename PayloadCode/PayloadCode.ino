@@ -117,6 +117,7 @@ void loop() {
         velocity = -2; // ? Hardcoded for now? Replace with smart thing
         temperature = readTemp(23);
         voltage = readVolt(14);
+        //heading = imu.mag.heading;
 
         // Do calculations
         float deltaT = (float)(currentTime - previousTime) / 1000.0;
@@ -280,6 +281,11 @@ void CSComms_parse(char c) {
             break;
         case 'w':       // Wipe EEPROM to all zeroes
             coreData.wipe();
+        case 'r':
+            // Reset everything and persist it
+            restoredTime = millis();
+            packetCount = 0;
+
         default:
             xbee.println("Invalid command");
     }
