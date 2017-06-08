@@ -54,7 +54,7 @@ time at 3
 // ********** Objects *********************************************************
 CSAlt baro;
 CSTemp temp;
-CSBuzzer buzzer;
+CSBuzzer buzzer; bool playBuzzer = true; bool buzzerIsOn = false;
 CSVolt volt;
 SoftwareSerial xbee(0, 1);
 
@@ -135,7 +135,7 @@ void setup() {
     pinMode(nichromePin, OUTPUT);
 
     // * Buzzer
-    buzzer = CSBuzzer(6);
+    buzzer = CSBuzzer(12);
     buzzer.setFrequency(800);
 
     // * Voltage divider
@@ -191,7 +191,7 @@ void loop() {
         }
 
         // * Print data
-        Serial.println("\nT: " + String(currentTime) + ",\tState: " + String(state) + ",\nAlt: " + String(currentAlt) + ",\tvSpeed: " + String(verticalSpeed) + ",\tTemp: " + String(currentTemp));
+
 
         // Set previous variables
         previousTime = currentTime;
@@ -278,23 +278,30 @@ void deploy_f() {
     transmitTelemetry();
 
     // Final burn (but don't burn the field)
-    if (currentAlt < forceDeployThreshold && currentAlt > cutoffAlt) {
-        // Start cutting sequence
-        startCut();
-
-        // Wait n-seconds, keep transmitting telemetry
-        for (int i = 0; i < (cutTime / 2); i++) {
-            updateTelemetry();
-            transmitTelemetry();
-            delay(1000);
-        }
-        stopCut();
-    }
+    // if (currentAlt < forceDeployThreshold && currentAlt > cutoffAlt) {
+    //     // Start cutting sequence
+    //     startCut();
+    //
+    //     // Wait n-seconds, keep transmitting telemetry
+    //     for (int i = 0; i < (cutTime / 2); i++) {
+    //         updateTelemetry();
+    //         transmitTelemetry();
+    //         delay(1000);
+    //     }
+    //     stopCut();
+    // }
 
     // Play buzzer
-    buzzer.play();
+    if (buzzerIsOn) {
+        digitalWrite(12, LOW);
+        buzzerIsOn = false;
+    } else {
+        if (playBuzzer) {
+            digitalWrite(12, HIGH);
+        }
+        buzzerIsOn = true;
+    }
 }
-
 
 
 // ********** Implement CSComms functions *************************************
@@ -369,10 +376,15 @@ void CSComms_parse(char c) {
         case 'r':
             Serial.println("Reset value");
             restoredTime = 0;
+            startTime = millis();
             packetCount = 0;
             currentTime = 0;
             previousTime = 0;
             store();
+            break;
+        case 'b':
+            // Toggle the buzzer (if it gets annoying)
+            playBuzzer = !playBuzzer;
             break;
         default:
             Serial.println("Invalid command char");
@@ -398,6 +410,7 @@ void transmitTelemetry() {
     CSComms_add(currentTemp);
     CSComms_add(currentVolt);
     CSComms_add((long)state);
+    Serial.println(dataString);
     CSComms_transmit();
 }
 

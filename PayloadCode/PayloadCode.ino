@@ -9,7 +9,7 @@
 // will be added.
 // Telemetry format:
 // <TEAM ID>,GLIDER,<MISSION TIME>,<PACKET COUNT>,
-// <ALTITUDE>, <PRESSURE>,<SPEED>, <TEMP>,<VOLTAGE>,
+// <ALTITUDE>, <PRESSURE>,<VELOCITY>, <TEMP>,<VOLTAGE>,
 // <HEADING>,<SOFTWARE STATE>
 
 // Calibration:
@@ -20,32 +20,39 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <EEPROM.h>
 #include <SoftwareSerial.h>
 #include "CSimu.h"
+#include "CSCoreData.h"
+// Voltage divider on pin 14
 
 // ********** Mission Constants ***********************************************
-#define isDescendingSpeedThreshold -1
-#define isLandedAltThreshold 10
+#define descendingSpeedThreshold -1
+#define landedAltThreshold 10
 
 
 // ********** Objects *********************************************************
-SoftwareSerial xbee(0, 1); String CSComms_dataString = "";
+SoftwareSerial xbee(1, 0); String CSComms_dataString = "";
 CSimu imu = CSimu();
+CSCoreData coreData;
+
+int buzzerPin = 12;
+bool playBuzzer = true; bool buzzerIsOn = false;
 
 // ********** Telemetry *******************************************************
-float missionTime = 0;
+double missionTime = 0;
 int packetCount = 0;
-float currentAlt = 0;
-    float prevousAlt = 0;
-    float verticalSpeed = 0;
-float pressure = 0;
-float velocity = 0;
-float temperature = 0;
-float voltage = 0;
-float heading = 0;
+double currentAlt = 0;
+    double previousAlt = 0;
+    double verticalSpeed = 0;
+double pressure = 0;
+double velocity = 0;
+double temperature = 0;
+double voltage = 0;
+double heading = 0;
 
 // ********** Common Grounds **************************************************
-float tempeAlt = 372.0;
+double tempeAlt = 372.0;
 
 // ********** State info ******************************************************
 int state = 0;
@@ -57,20 +64,26 @@ int state = 0;
 long currentTime = 0;
 long previousTime = 0;
 long restoredTime = 0;
-long bootTime = 0;
 int delayTime = 1000;
 
 void setup() {
     Serial.begin(9600);
+    xbee.begin(9600);
     Wire.begin();
+    Serial.println("Hey");
 
+    // IMU stuff
     imu.config();
     delay(50);
     imu.setGroundAltitude(tempeAlt);
 
     imu.updateSensors();
     currentAlt = imu.altitude;
-    prevousAlt = currentAlt;
+    previousAlt = currentAlt;
+
+    // Temp sensor
+    pinMode(23, INPUT);
+
 }
 
 void loop() {
@@ -78,9 +91,18 @@ void loop() {
     // *** Update time
     currentTime = getTime();
 
-    // *** Listen for commands
+    // *** Listen for commands from XBee
     if (xbee.available()) {
         char c = xbee.read();
+        Serial.print("Received "); Serial.println(c);
+        CSComms_parse(c);
+    }
+
+    // *** Listen for commands from XBee
+    if (Serial.available()) {
+        char c = Serial.read();
+        Serial.print("Received "); Serial.println(c);
+        CSComms_parse(c);
     }
 
     // *** Main code
@@ -93,21 +115,39 @@ void loop() {
         currentAlt = imu.altitude;
         pressure = imu.pressure;
         velocity = -2; // ? Hardcoded for now? Replace with smart thing
-        temperature = imu.temperature;
-        voltage = 0; // Hardcoded for now. Do other stuff
+        temperature = readTemp(23);
+        voltage = readVolt(14);
 
-        Serial.println(temperature);
+        // Do calculations
+        float deltaT = (float)(currentTime - previousTime) / 1000.0;
+        verticalSpeed = (currentAlt - previousAlt) / deltaT;
+        velocity = abs(verticalSpeed); // Force velocity to be verticalSpeed
 
-        // Run some calculations
+        // Add to data string (only print in descent)
+        CSComms_dataString = "";
+        CSComms_add("2848,GLIDER,");
+        CSComms_add(missionTime);
+        CSComms_add(packetCount);
+        CSComms_add(currentAlt);
+        CSComms_add(pressure);
+        CSComms_add(velocity);
+        CSComms_add(temperature);
+        CSComms_add(voltage);
+        CSComms_add(heading);
+        CSComms_add(state);
 
+        Serial.println(CSComms_dataString);
 
         // Switch on state
         switch (state) {
             case descent:
+                descent_f();
                 break;
             case landed:
+                landed_f();
                 break;
             case boot:
+                boot_f();
                 break;
             default:
                 Serial.println("Invalid state");
@@ -115,10 +155,10 @@ void loop() {
                 break;
         }
 
-        // Send telemetry
+        // Persist time, packet count, and groundAltitude (or hardcode?)
 
         // Set previous stuff
-        prevousAlt = currentAlt;
+        previousAlt = currentAlt;
         previousTime = currentTime;
 
     }
@@ -137,24 +177,135 @@ void loop() {
 // ********** Do a smart thing with time **************************************
 long getTime() {
     // Maintain restored time here
-    long temp = millis();
+    long temp = millis() + restoredTime;
     return temp;
 }
 
 
 
 // ********** State funcs *****************************************************
-void descent_f() {
+void boot_f() {
+    // Restore values from previous
+    restoredTime = coreData.restoreTime();
+    packetCount = coreData.restorePacketCount();
+    state = descent;
+}
 
-    // State change
+void descent_f() {
+    // Send telemetry
+    CSComms_transmit();
+
+    // State change condition
+    if (verticalSpeed >= descendingSpeedThreshold) {
+        state = landed;
+    }
 }
 
 void landed_f() {
+    Serial.println("Landed");
 
-    // State change
+    // Activate buzzer if desired
+    if (buzzerIsOn) {
+        digitalWrite(buzzerPin, LOW);
+        buzzerIsOn = false;
+    } else {
+        if (playBuzzer) {
+            digitalWrite(buzzerPin, HIGH);
+        }
+        buzzerIsOn = true;
+    }
+
+    // State change condition (maybe landed state was error?)
+    if (verticalSpeed < descendingSpeedThreshold) {
+        state = descent;
+    }
+
+    // NOTE: For testing, force transmission during landed state
+    CSComms_transmit();
 }
 
 // ********** CSComms *********************************************************
-void CSComms_add(long l) {
+void CSComms_add(int l) {
+    CSComms_dataString += String(l) + ",";
+}
 
+void CSComms_add(double f) {
+    CSComms_dataString += String(f) + ",";
+}
+
+void CSComms_add(String s) {
+    CSComms_dataString += s;
+}
+
+void CSComms_log(String s) {
+    xbee.println(s);
+}
+
+void CSComms_transmit() {
+    xbee.println(CSComms_dataString);
+    CSComms_dataString = "";
+    packetCount++;
+}
+
+bool CSComms_available() {
+    return xbee.available();
+}
+
+char CSComms_read() {
+    return xbee.read();
+}
+
+void CSComms_begin(int baud) {
+    xbee.begin(baud);
+}
+
+void CSComms_parse(char c) {
+    switch (c) {
+        case 'b':
+            if (playBuzzer) { // Toggle buzzer (cannot be toggled if landed)
+                playBuzzer = false;
+            } else {
+                playBuzzer = true;
+            }
+            break;
+        case '8':
+            state = descent; // Force state 1
+            break;
+        case '9':
+            state = landed;
+            break;
+        case 'w':       // Wipe EEPROM to all zeroes
+            coreData.wipe();
+        default:
+            xbee.println("Invalid command");
+    }
+}
+
+
+
+
+
+
+// ********** Temperature reading *********************************************
+double readTemp(int tempPin) {
+    // IF 5V, use 5000.0
+    // If 3.3V, use 3300.0
+
+    double pinMillivolts = analogRead(tempPin) * (5000.0 / 1024.0);
+    double celsius = (pinMillivolts - 500.0) / 10.0; // in celsius
+
+    // perform other calculations, or switch on a thing to use Fahrenheit
+    //double fahrenheit =  celsius * 1.8 + 32;
+    return celsius;
+}
+
+
+// Voltage reading
+
+double readVolt(int pin) {
+    double pinMillivolts = analogRead(pin) * (3300.0 / 1024.0);
+    double volts = pinMillivolts / 1000.0;
+    //return volts * 2;
+    // Or do some rubbish
+    return 6.0;
 }
