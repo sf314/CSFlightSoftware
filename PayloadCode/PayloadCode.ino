@@ -295,7 +295,7 @@ double readTemp(int tempPin) {
     // IF 5V, use 5000.0
     // If 3.3V, use 3300.0
 
-    double pinMillivolts = analogRead(tempPin) * (5000.0 / 1024.0);
+    double pinMillivolts = analogRead(tempPin) * (3300.0 / 1024.0);
     double celsius = (pinMillivolts - 500.0) / 10.0; // in celsius
 
     // perform other calculations, or switch on a thing to use Fahrenheit
