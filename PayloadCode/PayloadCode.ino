@@ -29,6 +29,7 @@
 // ********** Mission Constants ***********************************************
 #define descendingSpeedThreshold -1
 #define landedAltThreshold 10
+#define pi 3.1415926535897932384626433832795
 
 
 // ********** Objects *********************************************************
@@ -117,7 +118,7 @@ void loop() {
         velocity = -2; // ? Hardcoded for now? Replace with smart thing
         temperature = readTemp(23);
         voltage = readVolt(14);
-        //heading = imu.mag.heading;
+        heading = headingFromIMU(imu.mag.x, imu.mag.y);
 
         // Do calculations
         float deltaT = (float)(currentTime - previousTime) / 1000.0;
@@ -318,4 +319,20 @@ double readVolt(int pin) {
     return volts * 2;
     // Or do some rubbish
     //return 6.0;
+}
+
+
+int headingFromIMU(float x, float y) {
+    float returnValue = 0.0;
+    if (y > 0) {
+        returnValue = (int)(90 - (atan(x / y)) * ( 180 / pi));
+    } else if (y < 0) {
+        returnValue = (int)(270 - (atan(x / y)) * (180 / pi));
+    } else if (y == 0 && x < 0) {
+        returnValue = 180;
+    } else if (y == 0 && x > 0) {
+        returnValue = 0;
+    }
+
+    return (int)(round(returnValue));
 }
