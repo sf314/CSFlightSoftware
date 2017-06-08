@@ -156,8 +156,8 @@ void loop() {
         }
 
         // Persist time, packet count, and groundAltitude (or hardcode?)
-        coreData.storeTime(currentTime);
-        coreData.storePacketCount(packetCount);
+        // coreData.storeTime(currentTime);
+        // coreData.storePacketCount(packetCount);
 
         // Set previous stuff
         previousAlt = currentAlt;
