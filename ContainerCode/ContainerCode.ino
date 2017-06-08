@@ -108,7 +108,7 @@ int CSCoreData_restoreInt(int addr);
 #define descentVSpeedThreshold  -1
 #define forceDeployThreshold    150
 #define noVSpeedThreshold       1
-#define cutTime                 4 // seconds
+#define cutTime                 4
 #define cutoffAlt               100
 
 // ********** Setup Function *********************************************#####
@@ -343,9 +343,18 @@ void CSComms_parse(char c) {
     switch (c) {
         case 'x': // Auto cut command
             //nichrome.start(currentTime, cutTime);
-            digitalWrite(11, HIGH);
-            delay(6000);
-            digitalWrite(11, LOW);
+            digitalWrite(11, HIGH); // Start cut
+
+            // Wait n-seconds, keep transmitting telemetry
+            for (int i = 0; i < cutTime; i++) {
+                updateTelemetry();
+                transmitTelemetry();
+                delay(1000);
+            }
+
+            digitalWrite(11, LOW); // Stop cut
+
+            state = deploy;
             //ledBlinkRate = 250;
             state = deploy;
             break;
