@@ -76,6 +76,7 @@ void setup() {
 
     // IMU stuff
     imu.config();
+    imu.debugMode = true;
     delay(50);
     imu.setGroundAltitude(tempeAlt);
 
