@@ -38,7 +38,7 @@ CSimu imu = CSimu();
 CSCoreData coreData;
 
 int buzzerPin = 12;
-bool playBuzzer = false; bool buzzerIsOn = false; // Set true for flight
+bool playBuzzer = true; bool buzzerIsOn = false; // Set true for flight
 bool ledOn = false;
 
 // ********** Telemetry *******************************************************
