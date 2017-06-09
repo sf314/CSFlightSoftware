@@ -53,8 +53,11 @@ double temperature = 0;
 double voltage = 0;
 double heading = 0;
 
-// ********** Common Grounds **************************************************
-double tempeAlt = 372.0;
+// ********** For Ground Persistence ******************************************
+double tempeAlt = 372.0; // Not necessarily hardcoded
+byte altAddr = 40; // Let's say 40
+    // Take from EEPROM during boot, set during 'g' command
+bool useEEPROMalt = true; // Toogle if necessary
 
 // ********** State info ******************************************************
 int state = 0;
@@ -89,6 +92,14 @@ void setup() {
 
     // LED
     pinMode(13, OUTPUT);
+
+    // Restore if appropriate
+    if (useEEPROMalt) {
+        int temp = getInt(altAddr);
+        if (temp < 10000 || temp != 0) {
+            imu.setGroundAltitude((float)temp);
+        }
+    }
 }
 
 void loop() {
@@ -291,11 +302,14 @@ void CSComms_parse(char c) {
             break;
         case 'w':       // Wipe EEPROM to all zeroes
             coreData.wipe();
-        case 'r':
-            // Reset everything and persist it
+        case 'r':       // Reset everything and persist it
             restoredTime = millis();
             packetCount = 0;
-
+            break;
+        case 'g':       // Persist ground to EEPROM
+            storeInt((int)currentAlt, altAddr);
+            imu.setGroundAltitude(currentAlt);
+            break;
         default:
             xbee.println("Invalid command");
     }
@@ -330,7 +344,7 @@ double readVolt(int pin) {
     //return 6.0;
 }
 
-
+// Heading
 int headingFromIMU(float x, float y) {
     float returnValue = 0.0;
     if (y > 0) {
@@ -344,4 +358,28 @@ int headingFromIMU(float x, float y) {
     }
 
     return (int)(round(returnValue));
+}
+
+
+// Getting int from EEPROM
+void storeInt(int i, int addr) {
+    char two = (i & 0xFF);
+    char one = ((i >> 8) & 0xFF);
+
+    //Write the 4 bytes into the eeprom memory.
+    EEPROM.write(addr, one);
+    EEPROM.write(addr + 1, two);
+}
+
+int getInt(int addr) {
+    int temp;
+
+    // Bit shifting to retrieve full int
+    int one = EEPROM.read(addr);
+    int two = EEPROM.read(addr + 1);
+
+    //Return the recomposed long by using bitshift.
+    temp = ((two << 0) & 0xFF) + ((one << 8) & 0xFFFF);
+
+    return temp;
 }
