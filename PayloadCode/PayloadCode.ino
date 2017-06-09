@@ -38,7 +38,7 @@ CSimu imu = CSimu();
 CSCoreData coreData;
 
 int buzzerPin = 12;
-bool playBuzzer = true; bool buzzerIsOn = false;
+bool playBuzzer = false; bool buzzerIsOn = false;
 bool ledOn = false;
 
 // ********** Telemetry *******************************************************
@@ -239,17 +239,17 @@ void landed_f() {
     Serial.println("Landed\t");
 
     // Activate buzzer if desired
-    if (buzzerIsOn) {
-        // off
-        buzzerOff();
-        buzzerIsOn = false;
-    } else {
-        if (playBuzzer) {
-            // On
-            buzzerOn();
-        }
-        buzzerIsOn = true;
-    }
+    // if (buzzerIsOn) {
+    //     // off
+    //     buzzerOff();
+    //     buzzerIsOn = false;
+    // } else {
+    //     if (playBuzzer) {
+    //         // On
+    //         buzzerOn();
+    //     }
+    //     buzzerIsOn = true;
+    // }
 
     // State change condition (maybe landed state was error?)
     if (verticalSpeed < descendingSpeedThreshold) {
@@ -298,11 +298,11 @@ void CSComms_begin(int baud) {
 void CSComms_parse(char c) {
     switch (c) {
         case 'b':
-            if (playBuzzer) { // Toggle buzzer (cannot be toggled if landed)
-                playBuzzer = false;
-            } else {
-                playBuzzer = true;
-            }
+            // if (playBuzzer) { // Toggle buzzer (cannot be toggled if landed)
+            //     playBuzzer = false;
+            // } else {
+            //     playBuzzer = true;
+            // }
             break;
         case '8':
             state = descent; // Force state 1
