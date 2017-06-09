@@ -243,6 +243,8 @@ void launchpad_f() {
         state = ascent;
         delay(1000); // Don't let noise ruin it
     }
+
+    ledBlinkRate = 1000;
 }
 
 void ascent_f() {
@@ -252,6 +254,8 @@ void ascent_f() {
     if (verticalSpeed < descentVSpeedThreshold) {
         state = descent;
     }
+
+    ledBlinkRate = 1000;
 }
 
 void descent_f() {
@@ -259,38 +263,35 @@ void descent_f() {
     transmitTelemetry();
 
     if (currentAlt < targetAltitude) {
+        ledBlinkRate = 250;
+
         // Start cutting sequence
         startCut();
 
-        // Wait n-seconds, keep transmitting telemetry
+        // Wait n-seconds, keep transmitting telemetry but only for 2 seconds
         for (int i = 0; i < cutTime; i++) {
-            updateTelemetry();
-            transmitTelemetry();
+            state = deploy;
+            if (i <= 2) {
+                updateTelemetry();
+                transmitTelemetry();
+            } else {
+                // Don't send stuff
+            }
             delay(1000);
         }
+
         stopCut();
 
         state = deploy;
     }
+
+    ledBlinkRate = 1000;
 }
 
 void deploy_f() {
+    // NOTE: Don't send telemetry when deployed
     updateTelemetry();
     transmitTelemetry();
-
-    // Final burn (but don't burn the field)
-    // if (currentAlt < forceDeployThreshold && currentAlt > cutoffAlt) {
-    //     // Start cutting sequence
-    //     startCut();
-    //
-    //     // Wait n-seconds, keep transmitting telemetry
-    //     for (int i = 0; i < (cutTime / 2); i++) {
-    //         updateTelemetry();
-    //         transmitTelemetry();
-    //         delay(1000);
-    //     }
-    //     stopCut();
-    // }
 
     // Play buzzer
     if (currentAlt < landedAltThreshold) {
@@ -348,10 +349,15 @@ void CSComms_parse(char c) {
             //nichrome.start(currentTime, cutTime);
             digitalWrite(11, HIGH); // Start cut
 
-            // Wait n-seconds, keep transmitting telemetry
+            // Wait n-seconds, keep transmitting telemetry but only for 2 seconds
             for (int i = 0; i < cutTime; i++) {
-                updateTelemetry();
-                transmitTelemetry();
+                state = deploy;
+                if (i <= 2) {
+                    updateTelemetry();
+                    transmitTelemetry();
+                } else {
+                    // Don't send stuff
+                }
                 delay(1000);
             }
 

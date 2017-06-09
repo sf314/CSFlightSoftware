@@ -21,11 +21,9 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <EEPROM.h>
-#include <SPI.h>
 #include <SoftwareSerial.h>
 #include "CSimu.h"
 #include "CSCoreData.h"
-#include "CS_SD.h"
 // Voltage divider on pin 14
 
 // ********** Mission Constants ***********************************************
@@ -101,17 +99,8 @@ void setup() {
     pinMode(21, OUTPUT);
     pinMode(22, OUTPUT);
 
-    // SD Card
-    SD_init();
-
-    // Restore time if appropriate
-    // if (useEEPROMalt) {
-    //     int temp = getInt(altAddr);
-    //     if (temp < 10000 || temp != 0) {
-    //         imu.setGroundAltitude((float)temp);
-    //     }
-    // }
-
+    // Set start time
+    startTime = millis();
 }
 
 void loop() {
@@ -213,7 +202,7 @@ void loop() {
 // ********** Do a smart thing with time **************************************
 long getTime() {
     // Maintain restored time here
-    long temp = millis() + restoredTime;
+    long temp = millis() + restoredTime - startTime;
     return temp;
 }
 
@@ -227,11 +216,6 @@ void boot_f() {
     Serial.print("Restored time: "); Serial.println(restoredTime);
     Serial.print("Restored count: "); Serial.println(packetCount);
     state = descent;
-
-    // Log boot
-    SD_add((int)restoredTime);
-    SD_add("Boot");
-    SD_save();
 }
 
 void descent_f() {
@@ -309,6 +293,9 @@ void CSComms_begin(int baud) {
 
 void CSComms_parse(char c) {
     switch (c) {
+        case 'a':
+            // Print raw altitude (no ground)
+            Serial.println("Raw alt: " + String(imu.getAltitude()));
         case 'b':
             // if (playBuzzer) { // Toggle buzzer (cannot be toggled if landed)
             //     playBuzzer = false;
@@ -326,12 +313,15 @@ void CSComms_parse(char c) {
             coreData.wipe();
             break;
         case 'r':       // Reset everything and persist it
-            restoredTime = millis();
+            restoredTime = 0;
+            startTime = millis();
             packetCount = 0;
+            currentTime = 0;
+            previousTime = 0;
             break;
         case 'g':       // Persist ground to EEPROM
             // storeInt((int)currentAlt, altAddr);
-            imu.autoSetGroundAltitude();
+            imu.setGroundAltitude(imu.getAltitude());
             previousAlt = currentAlt;
             break;
         default:
