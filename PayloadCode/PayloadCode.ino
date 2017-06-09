@@ -79,7 +79,8 @@ void setup() {
 
     // IMU stuff
     imu.config();
-    imu.debugMode = true;
+    imu.debugMode = false;
+    imu.useGroundAltitude = true;
     delay(50);
     imu.setGroundAltitude(tempeAlt);
 
@@ -93,13 +94,17 @@ void setup() {
     // LED
     pinMode(13, OUTPUT);
 
-    // Restore if appropriate
-    if (useEEPROMalt) {
-        int temp = getInt(altAddr);
-        if (temp < 10000 || temp != 0) {
-            imu.setGroundAltitude((float)temp);
-        }
-    }
+    // Buzzer
+    pinMode(21, OUTPUT);
+    pinMode(22, OUTPUT);
+
+    // Restore ground alt if appropriate
+    // if (useEEPROMalt) {
+    //     int temp = getInt(altAddr);
+    //     if (temp < 10000 || temp != 0) {
+    //         imu.setGroundAltitude((float)temp);
+    //     }
+    // }
 }
 
 void loop() {
@@ -221,6 +226,9 @@ void descent_f() {
     // Send telemetry
     CSComms_transmit();
 
+    // Turn of buzzer
+    buzzerOff();
+
     // State change condition
     if (verticalSpeed >= descendingSpeedThreshold) {
         state = landed;
@@ -232,11 +240,13 @@ void landed_f() {
 
     // Activate buzzer if desired
     if (buzzerIsOn) {
-        digitalWrite(buzzerPin, LOW);
+        // off
+        buzzerOff();
         buzzerIsOn = false;
     } else {
         if (playBuzzer) {
-            digitalWrite(buzzerPin, HIGH);
+            // On
+            buzzerOn();
         }
         buzzerIsOn = true;
     }
@@ -302,16 +312,19 @@ void CSComms_parse(char c) {
             break;
         case 'w':       // Wipe EEPROM to all zeroes
             coreData.wipe();
+            break;
         case 'r':       // Reset everything and persist it
             restoredTime = millis();
             packetCount = 0;
             break;
         case 'g':       // Persist ground to EEPROM
-            storeInt((int)currentAlt, altAddr);
+            // storeInt((int)currentAlt, altAddr);
             imu.setGroundAltitude(currentAlt);
+            previousAlt = currentAlt;
             break;
         default:
             xbee.println("Invalid command");
+            break;
     }
 }
 
@@ -382,4 +395,16 @@ int getInt(int addr) {
     temp = ((two << 0) & 0xFF) + ((one << 8) & 0xFFFF);
 
     return temp;
+}
+
+
+
+void buzzerOn() {
+    digitalWrite(21, HIGH); // Diff
+    digitalWrite(22, LOW);
+}
+
+void buzzerOff() {
+    digitalWrite(21, LOW); // Same
+    digitalWrite(22, LOW);
 }
