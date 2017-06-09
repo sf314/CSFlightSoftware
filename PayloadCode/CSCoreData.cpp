@@ -7,7 +7,7 @@
 
 // Storing data to EEPROM
 void CSCoreData::storeTime(long l) {
-    Serial.println("CSCoreData::storeTime()");
+    //Serial.println("CSCoreData::storeTime()");
 
     //Decomposition from a long to 4 bytes by using bitshift.
       //One = Most significant -> Four = Least significant byte
@@ -26,7 +26,7 @@ void CSCoreData::storeTime(long l) {
 }
 
 void CSCoreData::storePacketCount(int i) {
-    Serial.println("CSCoreData::storePacket()");
+    //Serial.println("CSCoreData::storePacket()");
 
     char two = (i & 0xFF);
     char one = ((i >> 8) & 0xFF);
@@ -41,7 +41,7 @@ void CSCoreData::storePacketCount(int i) {
 // Restoring data from EEPROM
 
 long CSCoreData::restoreTime() { // Verify correctness, otherwise zero
-    Serial.println("CSCoreData::restoreTime");
+    //Serial.println("CSCoreData::restoreTime");
     long temp;
 
     //Read the 4 bytes from the eeprom memory.
@@ -62,7 +62,7 @@ long CSCoreData::restoreTime() { // Verify correctness, otherwise zero
 }
 
 int CSCoreData::restorePacketCount() { // Verify correctness, otherwise zero
-    Serial.println("CSCoreData::restorePacket");
+    //Serial.println("CSCoreData::restorePacket");
     int temp;
 
     // Bit shifting to retrieve full int
@@ -84,7 +84,7 @@ int CSCoreData::restorePacketCount() { // Verify correctness, otherwise zero
 
 // Wipe contents of EEPROM to zero (check for zero in code above)
 void CSCoreData::wipe() {
-    Serial.println("CSCoreData::wipe");
+    //Serial.println("CSCoreData::wipe");
     for (long i = 0; i < 100; i += 4) {
         EEPROM.write(i, 0);
     }

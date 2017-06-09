@@ -51,6 +51,7 @@ public:
 
     void setGroundAltitude(float init); // preset for area or for sea level, overrides averaging that config() does
     void autoSetGroundAltitude();
+    float altRadar();
 
     // ****** NEW STUFF:
     Vector accel;

@@ -55,7 +55,7 @@ double heading = 0;
 
 // ********** For Ground Persistence ******************************************
 double tempeAlt = 372.0; // Not necessarily hardcoded
-byte altAddr = 40; // Let's say 40
+byte altAddr = 20; // Let's say 40
     // Take from EEPROM during boot, set during 'g' command
 bool useEEPROMalt = true; // Toogle if necessary
 
@@ -98,7 +98,7 @@ void setup() {
     pinMode(21, OUTPUT);
     pinMode(22, OUTPUT);
 
-    // Restore ground alt if appropriate
+    // Restore time if appropriate
     // if (useEEPROMalt) {
     //     int temp = getInt(altAddr);
     //     if (temp < 10000 || temp != 0) {
@@ -178,8 +178,8 @@ void loop() {
         }
 
         // Persist time, packet count, and groundAltitude (or hardcode?)
-        // coreData.storeTime(currentTime);
-        // coreData.storePacketCount(packetCount);
+        coreData.storeTime(currentTime);
+        coreData.storePacketCount(packetCount);
 
         // Set previous stuff
         previousAlt = currentAlt;
@@ -236,7 +236,7 @@ void descent_f() {
 }
 
 void landed_f() {
-    Serial.println("Landed");
+    Serial.println("Landed\t");
 
     // Activate buzzer if desired
     if (buzzerIsOn) {
@@ -319,7 +319,7 @@ void CSComms_parse(char c) {
             break;
         case 'g':       // Persist ground to EEPROM
             // storeInt((int)currentAlt, altAddr);
-            imu.setGroundAltitude(currentAlt);
+            imu.autoSetGroundAltitude();
             previousAlt = currentAlt;
             break;
         default:

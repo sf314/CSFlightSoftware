@@ -71,7 +71,7 @@ void CSimu::updateSensors() { // Call before accessing data
 
     pressure = getPressure();
     temperature = getTemperature();
-    altitude = getAltitude();
+    altitude = altRadar();
     debug("CSimu.updateSensors: end");
 }
 
@@ -132,7 +132,7 @@ double CSimu::getAltitude() {
 
         if (useGroundAltitude) {
             //Serial.println("2.2.1");
-            return a * b / c - groundAltitude;
+            return a * b / c; // - groundAltitude;
         } else {
             //Serial.println("2.2.2");
             return a * b / c;
@@ -186,27 +186,28 @@ void CSimu::autoSetGroundAltitude() {
     // Sample altitude 20 times, take average (and debug if necessary!)
     // Don't use if you won't have power on the launchpad!
         // use setGroundAltitude() instead
-    updateSensors();
-    double sum = 0;
-    Serial.println("Sampling ground altitude");
-    for (int i = 1; i <= 10; i++) {
-        double thing = altitude;
-        sum = sum + thing;
-        if (debugMode) {
-            Serial.print("\tSample ");
-            Serial.print(i);
-            Serial.print(" ");
-            Serial.println(thing);
-        }
-        delay(20);
-        updateSensors();
-    }
-    groundAltitude = sum / 10;
-    if (debugMode) {
-        Serial.print("\tGround alt was found to be ");
-        Serial.println(groundAltitude);
-    }
+    // updateSensors();
+    // double sum = 0;
+    // Serial.println("Sampling ground altitude");
+    // for (int i = 1; i <= 10; i++) {
+    //     double thing = altitude;
+    //     sum = sum + thing;
+    //     if (debugMode) {
+    //         Serial.print("\tSample ");
+    //         Serial.print(i);
+    //         Serial.print(" ");
+    //         Serial.println(thing);
+    //     }
+    //     delay(20);
+    //     updateSensors();
+    // }
+    // groundAltitude = sum / 10;
+    // if (debugMode) {
+    //     Serial.print("\tGround alt was found to be ");
+    //     Serial.println(groundAltitude);
+    // }
 
+    groundAltitude = getAltitude();
 }
 
 double CSimu::gAccelMag() {
@@ -219,4 +220,10 @@ double CSimu::gAccelMag() {
     double c = accel.z / 1024;
 
     return sqrt(a * a + b * b + c * c);
+}
+
+
+float CSimu::altRadar() {
+    // Take getAltitude() and subtract ground alt
+    return getAltitude() - groundAltitude;
 }
