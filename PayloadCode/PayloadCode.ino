@@ -38,7 +38,7 @@ CSimu imu = CSimu();
 CSCoreData coreData;
 
 int buzzerPin = 12;
-bool playBuzzer = false; bool buzzerIsOn = false;
+bool playBuzzer = false; bool buzzerIsOn = false; // Set true for flight
 bool ledOn = false;
 
 // ********** Telemetry *******************************************************
@@ -55,9 +55,10 @@ double heading = 0;
 
 // ********** For Ground Persistence ******************************************
 double tempeAlt = 372.0; // Not necessarily hardcoded
+double workstationAlt = 410.0;
 byte altAddr = 20; // Let's say 40
     // Take from EEPROM during boot, set during 'g' command
-bool useEEPROMalt = true; // Toogle if necessary
+int rawAlt = 0;
 
 // ********** State info ******************************************************
 int state = 0;
@@ -72,6 +73,7 @@ long startTime = 0;
 long restoredTime = 0;
 int delayTime = 1000;
 
+
 void setup() {
     Serial.begin(9600);
     xbee.begin(9600);
@@ -83,7 +85,7 @@ void setup() {
     imu.debugMode = false;
     imu.useGroundAltitude = true;
     delay(50);
-    imu.setGroundAltitude(tempeAlt);
+    imu.setGroundAltitude(workstationAlt);
 
     imu.updateSensors();
     currentAlt = imu.altitude;
@@ -98,6 +100,11 @@ void setup() {
     // Buzzer
     pinMode(21, OUTPUT);
     pinMode(22, OUTPUT);
+
+    // Retrieve alt from EEPROM and use to set ground alt
+    int retrievedAlt = getInt(altAddr);
+    Serial.println("Retrieved alt: " + String(retrievedAlt));
+    imu.setGroundAltitude(retrievedAlt);
 
     // Set start time
     startTime = millis();
@@ -228,6 +235,7 @@ void descent_f() {
     // State change condition
     if (verticalSpeed >= descendingSpeedThreshold) {
         state = landed;
+        playBuzzer = true; // Activate upon transition
     }
 }
 
@@ -235,17 +243,17 @@ void landed_f() {
     Serial.println("Landed\t");
 
     // Activate buzzer if desired
-    // if (buzzerIsOn) {
-    //     // off
-    //     buzzerOff();
-    //     buzzerIsOn = false;
-    // } else {
-    //     if (playBuzzer) {
-    //         // On
-    //         buzzerOn();
-    //     }
-    //     buzzerIsOn = true;
-    // }
+    if (buzzerIsOn) {
+        // off
+        buzzerOff();
+        buzzerIsOn = false;
+    } else {
+        if (playBuzzer) {
+            // On
+            buzzerOn();
+        }
+        buzzerIsOn = true;
+    }
 
     // State change condition (maybe landed state was error?)
     if (verticalSpeed < descendingSpeedThreshold) {
@@ -296,12 +304,13 @@ void CSComms_parse(char c) {
         case 'a':
             // Print raw altitude (no ground)
             Serial.println("Raw alt: " + String(imu.getAltitude()));
+            break;
         case 'b':
-            // if (playBuzzer) { // Toggle buzzer (cannot be toggled if landed)
-            //     playBuzzer = false;
-            // } else {
-            //     playBuzzer = true;
-            // }
+            if (playBuzzer) { // Toggle buzzer (cannot be toggled if landed)
+                playBuzzer = false;
+            } else {
+                playBuzzer = true;
+            }
             break;
         case '8':
             state = descent; // Force state 1
@@ -321,8 +330,13 @@ void CSComms_parse(char c) {
             break;
         case 'g':       // Persist ground to EEPROM
             // storeInt((int)currentAlt, altAddr);
-            imu.setGroundAltitude(imu.getAltitude());
+            rawAlt = imu.getAltitude();
+            imu.setGroundAltitude(rawAlt);
+            currentAlt = rawAlt;
             previousAlt = currentAlt;
+            Serial.println("Setting ground alt to: " + String(rawAlt));
+            storeInt(rawAlt, altAddr);
+            Serial.println("EEPROM reads: " + String(getInt(altAddr)));
             break;
         default:
             xbee.println("Invalid command");
