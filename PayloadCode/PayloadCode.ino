@@ -21,9 +21,11 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <EEPROM.h>
+#include <SPI.h>
 #include <SoftwareSerial.h>
 #include "CSimu.h"
 #include "CSCoreData.h"
+#include "CS_SD.h"
 // Voltage divider on pin 14
 
 // ********** Mission Constants ***********************************************
@@ -68,6 +70,7 @@ int state = 0;
 // ********** Time vars *******************************************************
 long currentTime = 0;
 long previousTime = 0;
+long startTime = 0;
 long restoredTime = 0;
 int delayTime = 1000;
 
@@ -98,6 +101,9 @@ void setup() {
     pinMode(21, OUTPUT);
     pinMode(22, OUTPUT);
 
+    // SD Card
+    SD_init();
+
     // Restore time if appropriate
     // if (useEEPROMalt) {
     //     int temp = getInt(altAddr);
@@ -105,6 +111,7 @@ void setup() {
     //         imu.setGroundAltitude((float)temp);
     //     }
     // }
+
 }
 
 void loop() {
@@ -220,6 +227,11 @@ void boot_f() {
     Serial.print("Restored time: "); Serial.println(restoredTime);
     Serial.print("Restored count: "); Serial.println(packetCount);
     state = descent;
+
+    // Log boot
+    SD_add((int)restoredTime);
+    SD_add("Boot");
+    SD_save();
 }
 
 void descent_f() {
