@@ -276,6 +276,7 @@ void descent_f() {
                 transmitTelemetry();
             } else {
                 // Don't send stuff
+                updateTelemetry();
             }
             delay(1000);
         }
@@ -305,6 +306,8 @@ void deploy_f() {
             buzzerIsOn = true;
         }
     }
+
+    ledBlinkRate = 250;
 }
 
 
