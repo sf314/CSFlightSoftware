@@ -25,7 +25,7 @@ double CSimu::pressureVal;
 
 
 CSimu::CSimu() {
-    Serial.println("CSimu constructor");
+    debug("Constructor");
     // Options
     debugMode = false;
     useGroundAltitude = true;
@@ -45,13 +45,17 @@ Adafruit_LSM303 CSimu::accelMag;
 
 void CSimu::debug(String s) {
     if (debugMode) {
-        Serial.println("CSimu: " + s);
+        Serial.println(s);
     }
 }
 
 void CSimu::updateSensors() { // Call before accessing data
-    debug("updateSensors()");
-    gyroscope.read(); // update gyroscope.data variable.
+    debug("CSimu.updateSensors: start");
+
+    debug("\tGyro read");
+    //gyroscope.read(); // update gyroscope.data variable.
+
+    debug("\tAccel read");
     accelMag.read(); // Does both the accelerometer and magnetometer
     accel.x = accelMag.accelData.x;
     accel.y = accelMag.accelData.y;
@@ -67,19 +71,20 @@ void CSimu::updateSensors() { // Call before accessing data
 
     pressure = getPressure();
     temperature = getTemperature();
-    altitude = getAltitude();
+    altitude = altRadar();
+    debug("CSimu.updateSensors: end");
 }
 
 
 double CSimu::getTemperature() {
-    Serial.println("getTemperature()");
+    debug("CSimu.getTemperature");
     float t;
     barometer.getTemperature(&t);
     return t;
 }
 
 double CSimu::getPressure() {
-    Serial.println("getPressure");
+    debug("CSimu.getPressure");
     float p;
     barometer.getPressure(&p);
     pressureVal = p;
@@ -93,7 +98,7 @@ double CSimu::getPressure() {
 }
 
 double CSimu::getAltitude() {
-    Serial.println("getAltitude");
+    debug("CSimu.getAltitude");
     // Feed pressure at sea level and current pressure (in hPa!)
     // Pressure at sea level (1 atm) = 1013 hPa
     // Can return true alt or 'radar' alt
@@ -127,7 +132,7 @@ double CSimu::getAltitude() {
 
         if (useGroundAltitude) {
             //Serial.println("2.2.1");
-            return a * b / c - groundAltitude;
+            return a * b / c; // - groundAltitude;
         } else {
             //Serial.println("2.2.2");
             return a * b / c;
@@ -139,17 +144,22 @@ double CSimu::getAltitude() {
 
 
 void CSimu::config() {
-    debug("config()");
+    debug("CSimu.config(): start");
 
     // ***** Barometer stuff
+    debug("\tBarometer");
         barometer.begin();
 
     // ***** gyroscope stuff
     //gyroscope.begin(GYRO_RANGE_250DPS, 0x00); // Specify gyroscope's I2C address!
+    debug("\tGyro");
         gyroscope.begin();
+        //gyroscope.read();
+        //Serial.println(gyroscope.data.x);
 
     // ***** Accel and mag stuff
     // begin, set mag gain (?)
+    debug("\tAccel");
         accelMag.begin();
         accelMag.setMagGain(LSM303_MAGGAIN_1_3); // Maybe? Find stuff on C++ enums
 
@@ -157,9 +167,11 @@ void CSimu::config() {
         gyro = Vector();
         accel = Vector();
         mag = Vector();
+    debug("CSimu.config(): end");
 }
 
 void CSimu::setGroundAltitude(float init) {
+    debug("CSimu.setGroundAltitude");
     groundAltitude = init;
 }
 
@@ -170,33 +182,36 @@ Vector::Vector() {
 }
 
 void CSimu::autoSetGroundAltitude() {
+    debug("CSimu.autoSetGroundAltitude");
     // Sample altitude 20 times, take average (and debug if necessary!)
     // Don't use if you won't have power on the launchpad!
         // use setGroundAltitude() instead
-    updateSensors();
-    double sum = 0;
-    Serial.println("Sampling ground altitude");
-    for (int i = 1; i <= 10; i++) {
-        double thing = altitude;
-        sum = sum + thing;
-        if (debugMode) {
-            Serial.print("\tSample ");
-            Serial.print(i);
-            Serial.print(" ");
-            Serial.println(thing);
-        }
-        delay(20);
-        updateSensors();
-    }
-    groundAltitude = sum / 10;
-    if (debugMode) {
-        Serial.print("\tGround alt was found to be ");
-        Serial.println(groundAltitude);
-    }
+    // updateSensors();
+    // double sum = 0;
+    // Serial.println("Sampling ground altitude");
+    // for (int i = 1; i <= 10; i++) {
+    //     double thing = altitude;
+    //     sum = sum + thing;
+    //     if (debugMode) {
+    //         Serial.print("\tSample ");
+    //         Serial.print(i);
+    //         Serial.print(" ");
+    //         Serial.println(thing);
+    //     }
+    //     delay(20);
+    //     updateSensors();
+    // }
+    // groundAltitude = sum / 10;
+    // if (debugMode) {
+    //     Serial.print("\tGround alt was found to be ");
+    //     Serial.println(groundAltitude);
+    // }
 
+    groundAltitude = getAltitude();
 }
 
 double CSimu::gAccelMag() {
+    debug("CSimu.gAccelMag");
     // Assumes that 1g = 1024u
     // sqrt(x^2 + y^2 + z^2)
     // where x is converted to g's
@@ -205,4 +220,10 @@ double CSimu::gAccelMag() {
     double c = accel.z / 1024;
 
     return sqrt(a * a + b * b + c * c);
+}
+
+
+float CSimu::altRadar() {
+    // Take getAltitude() and subtract ground alt
+    return getAltitude() - groundAltitude;
 }

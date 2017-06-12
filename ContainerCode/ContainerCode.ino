@@ -54,7 +54,7 @@ time at 3
 // ********** Objects *********************************************************
 CSAlt baro;
 CSTemp temp;
-CSBuzzer buzzer;
+CSBuzzer buzzer; bool playBuzzer = true; bool buzzerIsOn = false;
 CSVolt volt;
 SoftwareSerial xbee(0, 1);
 
@@ -102,14 +102,15 @@ long CSCoreData_restoreLong(int addr);
 int CSCoreData_restoreInt(int addr);
 
 // ********** State change conditions *****************************************
-#define targetAltitude          250
+#define targetAltitude          410
 #define ascentVSpeedThreshold   1
 #define ascentAltThreshold      40
 #define descentVSpeedThreshold  -1
 #define forceDeployThreshold    150
 #define noVSpeedThreshold       1
-#define cutTime                 4 // seconds
+#define cutTime                 4
 #define cutoffAlt               100
+#define landedAltThreshold      50
 
 // ********** Setup Function *********************************************#####
 void setup() {
@@ -135,7 +136,7 @@ void setup() {
     pinMode(nichromePin, OUTPUT);
 
     // * Buzzer
-    buzzer = CSBuzzer(6);
+    buzzer = CSBuzzer(12);
     buzzer.setFrequency(800);
 
     // * Voltage divider
@@ -191,7 +192,7 @@ void loop() {
         }
 
         // * Print data
-        Serial.println("\nT: " + String(currentTime) + ",\tState: " + String(state) + ",\nAlt: " + String(currentAlt) + ",\tvSpeed: " + String(verticalSpeed) + ",\tTemp: " + String(currentTemp));
+
 
         // Set previous variables
         previousTime = currentTime;
@@ -242,6 +243,8 @@ void launchpad_f() {
         state = ascent;
         delay(1000); // Don't let noise ruin it
     }
+
+    ledBlinkRate = 1000;
 }
 
 void ascent_f() {
@@ -251,6 +254,8 @@ void ascent_f() {
     if (verticalSpeed < descentVSpeedThreshold) {
         state = descent;
     }
+
+    ledBlinkRate = 1000;
 }
 
 void descent_f() {
@@ -258,43 +263,52 @@ void descent_f() {
     transmitTelemetry();
 
     if (currentAlt < targetAltitude) {
+        ledBlinkRate = 250;
+
         // Start cutting sequence
         startCut();
 
-        // Wait n-seconds, keep transmitting telemetry
+        // Wait n-seconds, keep transmitting telemetry but only for 2 seconds
         for (int i = 0; i < cutTime; i++) {
-            updateTelemetry();
-            transmitTelemetry();
+            state = deploy;
+            if (i <= 2) {
+                updateTelemetry();
+                transmitTelemetry();
+            } else {
+                // Don't send stuff
+                updateTelemetry();
+            }
             delay(1000);
         }
+
         stopCut();
 
         state = deploy;
     }
+
+    ledBlinkRate = 1000;
 }
 
 void deploy_f() {
+    // NOTE: Don't send telemetry when deployed
     updateTelemetry();
     transmitTelemetry();
 
-    // Final burn (but don't burn the field)
-    if (currentAlt < forceDeployThreshold && currentAlt > cutoffAlt) {
-        // Start cutting sequence
-        startCut();
-
-        // Wait n-seconds, keep transmitting telemetry
-        for (int i = 0; i < (cutTime / 2); i++) {
-            updateTelemetry();
-            transmitTelemetry();
-            delay(1000);
+    // Play buzzer
+    if (currentAlt < landedAltThreshold) {
+        if (buzzerIsOn) {
+            digitalWrite(12, LOW);
+            buzzerIsOn = false;
+        } else {
+            if (playBuzzer) {
+                digitalWrite(12, HIGH);
+            }
+            buzzerIsOn = true;
         }
-        stopCut();
     }
 
-    // Play buzzer
-    buzzer.play();
+    ledBlinkRate = 250;
 }
-
 
 
 // ********** Implement CSComms functions *************************************
@@ -336,11 +350,24 @@ void CSComms_parse(char c) {
     switch (c) {
         case 'x': // Auto cut command
             //nichrome.start(currentTime, cutTime);
-            digitalWrite(11, HIGH);
-            delay(6000);
-            digitalWrite(11, LOW);
-            //ledBlinkRate = 250;
+            digitalWrite(11, HIGH); // Start cut
+
+            // Wait n-seconds, keep transmitting telemetry but only for 2 seconds
+            for (int i = 0; i < cutTime; i++) {
+                state = deploy;
+                if (i <= 2) {
+                    updateTelemetry();
+                    transmitTelemetry();
+                } else {
+                    // Don't send stuff
+                }
+                delay(1000);
+            }
+
+            digitalWrite(11, LOW); // Stop cut
+
             state = deploy;
+            ledBlinkRate = 250;
             break;
         case '0': // switch to state 0 (reboot)
             state = boot; break;
@@ -369,10 +396,15 @@ void CSComms_parse(char c) {
         case 'r':
             Serial.println("Reset value");
             restoredTime = 0;
+            startTime = millis();
             packetCount = 0;
             currentTime = 0;
             previousTime = 0;
             store();
+            break;
+        case 'b':
+            // Toggle the buzzer (if it gets annoying)
+            playBuzzer = !playBuzzer;
             break;
         default:
             Serial.println("Invalid command char");
@@ -398,6 +430,7 @@ void transmitTelemetry() {
     CSComms_add(currentTemp);
     CSComms_add(currentVolt);
     CSComms_add((long)state);
+    Serial.println(dataString);
     CSComms_transmit();
 }
 

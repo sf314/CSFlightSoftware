@@ -51,8 +51,6 @@ public:
 
     void setGroundAltitude(float init); // preset for area or for sea level, overrides averaging that config() does
     void autoSetGroundAltitude();
-    float altRadar();
-    double getAltitude(); // in m (assumes sea level pressure is 1013 hPa)
 
     // ****** NEW STUFF:
     Vector accel;
@@ -73,6 +71,7 @@ private:
 
     double getTemperature(); // in C
     double getPressure(); // in kPa
+    double getAltitude(); // in m (assumes sea level pressure is 1013 hPa)
 
     static double groundAltitude;
     static double pressureVal; // for pressure() and altitude()
